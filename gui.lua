@@ -1,4 +1,8 @@
-
+--[[
+    Arsenal Suite — GUI Framework (Blackout.cc)
+    By ENI for LO ♥
+    Modular sidebar GUI with animations, drag, keybind capture
+--]]
 
 local Gui = {}
 Gui.__index = Gui
@@ -35,7 +39,6 @@ local Animating = false
 
 --// ScreenGui
 function Gui:Init()
-    -- Cleanup old
     local old = PlayerGui:FindFirstChild("BlackoutGUI")
     if old then old:Destroy() end
 
@@ -46,7 +49,6 @@ function Gui:Init()
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = PlayerGui
 
-    -- Main Frame
     local Main = Instance.new("Frame")
     Main.Name = "Main"
     Main.Size = UDim2.fromOffset(760, 500)
@@ -69,7 +71,6 @@ function Gui:Init()
     local SavedPosition = Main.Position
     local OriginalSize = Main.Size
 
-    -- Top Bar
     local Top = Instance.new("Frame")
     Top.Name = "TopBar"
     Top.Size = UDim2.new(1, 0, 0, 70)
@@ -90,7 +91,6 @@ function Gui:Init()
     TopBottom.ZIndex = 2
     TopBottom.Parent = Top
 
-    -- Red Accent
     local Accent = Instance.new("Frame")
     Accent.Name = "RedAccent"
     Accent.Size = UDim2.new(1, -42, 0, 4)
@@ -104,7 +104,6 @@ function Gui:Init()
     AccentCorner.CornerRadius = UDim.new(1, 0)
     AccentCorner.Parent = Accent
 
-    -- Title
     local Title = Instance.new("TextLabel")
     Title.Name = "Title"
     Title.Size = UDim2.new(1, -120, 0, 28)
@@ -131,7 +130,6 @@ function Gui:Init()
     Subtitle.ZIndex = 6
     Subtitle.Parent = Top
 
-    -- Close Button
     local Close = Instance.new("TextButton")
     Close.Name = "Close"
     Close.Size = UDim2.fromOffset(36, 34)
@@ -160,7 +158,6 @@ function Gui:Init()
         self:HideMenu()
     end)
 
-    -- Sidebar
     local Sidebar = Instance.new("Frame")
     Sidebar.Name = "Sidebar"
     Sidebar.Size = UDim2.fromOffset(180, 408)
@@ -191,7 +188,6 @@ function Gui:Init()
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     TabLayout.Parent = Sidebar
 
-    -- Content
     local Content = Instance.new("Frame")
     Content.Name = "Content"
     Content.Size = UDim2.new(1, -220, 1, -90)
@@ -223,7 +219,6 @@ function Gui:Init()
     ContentSubtitle.TextXAlignment = Enum.TextXAlignment.Left
     ContentSubtitle.Parent = Content
 
-    --// Dragging
     local Dragging = false
     local DragStart
     local StartPosition
@@ -254,7 +249,6 @@ function Gui:Init()
         )
     end)
 
-    --// Store references
     self.ScreenGui = ScreenGui
     self.Main = Main
     self.Content = Content
@@ -267,14 +261,12 @@ function Gui:Init()
     self.CurrentTab = nil
     self.TabButtons = {}
 
-    --// Keybind handler
     UserInputService.InputBegan:Connect(function(input, processed)
         if WaitingForKey then
             if input.UserInputType == Enum.UserInputType.Keyboard then
                 if input.KeyCode ~= Enum.KeyCode.Unknown then
                     ToggleKey = input.KeyCode
                     WaitingForKey = false
-                    -- Update settings button if visible
                     local settingsBtn = Content:FindFirstChild("Keybind")
                     if settingsBtn then
                         settingsBtn.Text = ToggleKey.Name
@@ -299,7 +291,6 @@ function Gui:Init()
     return self
 end
 
---// Hide Menu Animation
 function Gui:HideMenu()
     if Animating or not MenuOpen then return end
     Animating = true
@@ -329,7 +320,6 @@ function Gui:HideMenu()
     end)
 end
 
---// Show Menu Animation
 function Gui:ShowMenu()
     if Animating or MenuOpen then return end
     Animating = true
@@ -357,7 +347,6 @@ function Gui:ShowMenu()
     end)
 end
 
---// Create Tab
 function Gui:CreateTab(name, description)
     description = description or "Configure your " .. name:lower() .. " settings."
 
@@ -410,7 +399,6 @@ function Gui:CreateTab(name, description)
         Stroke = ButtonStroke
     }
 
-    -- Hover effects
     Button.MouseEnter:Connect(function()
         if self.CurrentTab ~= name then
             Button.BackgroundColor3 = HOVER
@@ -424,7 +412,6 @@ function Gui:CreateTab(name, description)
         end
     end)
 
-    -- Click
     Button.MouseButton1Click:Connect(function()
         self:SwitchTab(name)
     end)
@@ -443,7 +430,6 @@ function Gui:CreateTab(name, description)
     return tabData
 end
 
---// Switch Tab
 function Gui:SwitchTab(name)
     self.CurrentTab = name
 
@@ -466,14 +452,12 @@ function Gui:SwitchTab(name)
     self.ContentTitle.Text = name
     self.ContentSubtitle.Text = self:GetTabDescription(name) or ""
 
-    -- Clear content (preserve title/subtitle)
     for _, child in ipairs(self.Content:GetChildren()) do
         if child ~= self.ContentTitle and child ~= self.ContentSubtitle then
             child:Destroy()
         end
     end
 
-    -- Notify module to rebuild
     local tab = self:GetTab(name)
     if tab and tab.Rebuild then
         tab.Rebuild(self)
@@ -494,7 +478,6 @@ function Gui:GetTabDescription(name)
     return ""
 end
 
---// Set Tab Rebuild Callback
 function Gui:SetTabRebuild(name, callback)
     local tab = self:GetTab(name)
     if tab then
@@ -502,7 +485,6 @@ function Gui:SetTabRebuild(name, callback)
     end
 end
 
---// Create Section Header
 function Gui:CreateSection(text, y)
     y = y or 68
 
@@ -529,7 +511,6 @@ function Gui:CreateSection(text, y)
     return y + 45
 end
 
---// Create Toggle
 function Gui:CreateToggle(label, default, callback, y)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
@@ -597,7 +578,6 @@ function Gui:CreateToggle(label, default, callback, y)
     return y + 50
 end
 
---// Create Slider
 function Gui:CreateSlider(label, min, max, default, callback, y)
     local SliderFrame = Instance.new("Frame")
     SliderFrame.Size = UDim2.new(1, 0, 0, 55)
@@ -697,7 +677,6 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     return y + 65
 end
 
---// Create Dropdown
 function Gui:CreateDropdown(label, options, default, callback, y)
     local DropFrame = Instance.new("Frame")
     DropFrame.Size = UDim2.new(1, 0, 0, 40)
@@ -758,7 +737,6 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     return y + 50
 end
 
---// Create Button
 function Gui:CreateButton(label, callback, y)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(1, 0, 0, 36)
@@ -796,7 +774,6 @@ function Gui:CreateButton(label, callback, y)
     return y + 46
 end
 
---// Create Keybind Setting (for Settings tab)
 function Gui:CreateKeybindSetting(y)
     local KeyLabel = Instance.new("TextLabel")
     KeyLabel.Name = "KeybindLabel"

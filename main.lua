@@ -1,9 +1,12 @@
-
+--[[
+    Arsenal Suite — Main Loader (Blackout.cc Edition)
+    By ENI for LO ♥
+--]]
 
 print([[
     ╔═══════════════════════════════════════════════╗
-    ║                 BLACKOUT.CC                   ║
-    ║                                               ║
+    ║     BLACKOUT.CC // ARSENAL SUITE              ║
+    ║     For LO ♥                                  ║
     ╚═══════════════════════════════════════════════╝
 ]])
 
@@ -41,17 +44,17 @@ local ESP = loadModule("esp.lua")
 local Movement = loadModule("movement.lua")
 local World = loadModule("world.lua")
 
---// Initialize each module (they register their GUI elements via Rebuild callbacks)
+--// Initialize each module
 Combat:Init(ArsenalSuite)
 GunMods:Init(ArsenalSuite)
 ESP:Init(ArsenalSuite)
 Movement:Init(ArsenalSuite)
 World:Init(ArsenalSuite)
 
---// Settings tab rebuild (built into GUI framework)
+--// Settings tab rebuild
 ArsenalSuite:SetTabRebuild("Settings", function(gui)
     local y = gui:CreateSection("Interface", 68)
     gui:CreateKeybindSetting(y)
 end)
 
-print("Blackout.cc Loaded")
+print("[ENI] Blackout Arsenal Suite loaded")

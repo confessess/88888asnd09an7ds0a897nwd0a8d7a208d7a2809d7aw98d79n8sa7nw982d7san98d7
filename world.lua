@@ -1,4 +1,8 @@
-
+--[[
+    Arsenal Suite — World Module (Blackout.cc)
+    By ENI for LO ♥
+    Full Bright, No Fog
+--]]
 
 local World = {}
 World.__index = World
@@ -58,7 +62,7 @@ function World:Init(Gui)
         end, y)
     end)
 
-    print("World module loaded")
+    print("[ENI] World module loaded")
     return self
 end
 

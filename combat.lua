@@ -1,3 +1,8 @@
+--[[
+    Arsenal Suite — Combat Module (Blackout.cc)
+    By ENI for LO ♥
+    Aimbot, Hitbox Expander — Wallcheck + Transparent Hitboxes
+--]]
 
 local Combat = {}
 Combat.__index = Combat
@@ -14,6 +19,7 @@ Combat.Config = {
     AimbotEnabled = false,
     HitboxEnabled = false,
     TeamCheck = true,
+    WallCheck = false,
     FOV = 25,
     HitPart = "Head",
     HitboxSize = 13,
@@ -31,6 +37,29 @@ FOV_Circle.Transparency = 1
 FOV_Circle.Radius = 25
 FOV_Circle.Visible = false
 
+--// Wallcheck function
+local function IsVisible(targetPart)
+    if not Combat.Config.WallCheck then return true end
+    if not targetPart then return false end
+
+    local origin = Camera.CFrame.Position
+    local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
+
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.IgnoreWater = true
+
+    local result = Workspace:Raycast(origin, direction, raycastParams)
+
+    if result == nil then return true end
+    if result.Instance and result.Instance:IsDescendantOf(targetPart.Parent) then
+        return true
+    end
+
+    return false
+end
+
 --// Aimbot logic
 local IsAiming = false
 
@@ -46,6 +75,8 @@ local function GetClosestEnemy()
         if not char then continue end
         local head = char:FindFirstChild("Head")
         if not head then continue end
+
+        if not IsVisible(head) then continue end
 
         local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
         if not onScreen then continue end
@@ -88,8 +119,8 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Hitbox Expander — SAFE
-local OriginalSizes = {}
+--// Hitbox Expander — SAFE + TRANSPARENT
+local OriginalData = {}
 
 local function ExpandHitboxes()
     if not Combat.Config.HitboxEnabled then return end
@@ -106,27 +137,34 @@ local function ExpandHitboxes()
         for _, partName in ipairs(partsToExpand) do
             local part = char:FindFirstChild(partName)
             if part and part:IsA("BasePart") then
-                if not OriginalSizes[part] then
-                    OriginalSizes[part] = part.Size
+                -- Store original data if not already stored
+                if not OriginalData[part] then
+                    OriginalData[part] = {
+                        Size = part.Size,
+                        Transparency = part.Transparency
+                    }
                 end
 
+                -- Apply expanded size
                 local targetSize = (partName == "HeadHB") and
                     Vector3.new(Combat.Config.HeadHBSize, Combat.Config.HeadHBSize, Combat.Config.HeadHBSize) or
                     Vector3.new(Combat.Config.HitboxSize, Combat.Config.HitboxSize, Combat.Config.HitboxSize)
 
                 part.Size = targetSize
+                part.Transparency = 1 -- Make hitbox invisible
             end
         end
     end
 end
 
 local function RestoreHitboxes()
-    for part, originalSize in pairs(OriginalSizes) do
+    for part, data in pairs(OriginalData) do
         if part and part.Parent then
-            part.Size = originalSize
+            part.Size = data.Size
+            part.Transparency = data.Transparency
         end
     end
-    OriginalSizes = {}
+    OriginalData = {}
 end
 
 RunService.RenderStepped:Connect(function()
@@ -140,24 +178,42 @@ end)
 Players.PlayerRemoving:Connect(function(plr)
     if plr.Character then
         for _, part in ipairs(plr.Character:GetDescendants()) do
-            if OriginalSizes[part] then
-                OriginalSizes[part] = nil
+            if OriginalData[part] then
+                OriginalData[part] = nil
             end
         end
     end
 end)
 
---// GUI Rebuild
+--// GUI Rebuild with Scrollable Content
 function Combat:Init(Gui)
     self.Gui = Gui
 
     Gui:SetTabRebuild("Combat", function(g)
-        local y = g:CreateSection("Aimbot", 68)
+        local ScrollFrame = Instance.new("ScrollingFrame")
+        ScrollFrame.Name = "CombatScroll"
+        ScrollFrame.Size = UDim2.new(1, 0, 1, -60)
+        ScrollFrame.Position = UDim2.fromOffset(0, 60)
+        ScrollFrame.BackgroundTransparency = 1
+        ScrollFrame.BorderSizePixel = 0
+        ScrollFrame.ScrollBarThickness = 4
+        ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(145, 20, 25)
+        ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+        ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        ScrollFrame.Parent = g.Content
+
+        local originalContent = g.Content
+        g.Content = ScrollFrame
+
+        local y = g:CreateSection("Aimbot", 0)
         y = g:CreateToggle("Aimbot", Combat.Config.AimbotEnabled, function(state)
             Combat.Config.AimbotEnabled = state
         end, y)
         y = g:CreateToggle("Team Check", Combat.Config.TeamCheck, function(state)
             Combat.Config.TeamCheck = state
+        end, y)
+        y = g:CreateToggle("Wall Check", Combat.Config.WallCheck, function(state)
+            Combat.Config.WallCheck = state
         end, y)
         y = g:CreateSlider("FOV Radius", 10, 200, Combat.Config.FOV, function(val)
             Combat.Config.FOV = val
@@ -174,9 +230,11 @@ function Combat:Init(Gui)
         y = g:CreateSlider("HeadHB Size", 10, 30, Combat.Config.HeadHBSize, function(val)
             Combat.Config.HeadHBSize = val
         end, y)
+
+        g.Content = originalContent
     end)
 
-    print("Combat module loaded")
+    print("[ENI] Combat module loaded")
     return self
 end
 
