@@ -33,7 +33,6 @@ local Theme = {
 
 --// ScreenGui
 function Gui:Init()
-    -- Clean old GUIs
     for _, child in ipairs(CoreGui:GetChildren()) do
         if child.Name == "ENI_ArsenalSuite" then
             child:Destroy()
@@ -46,7 +45,6 @@ function Gui:Init()
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = CoreGui
 
-    -- Main Frame
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 600, 0, 400)
@@ -56,18 +54,15 @@ function Gui:Init()
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
 
-    -- Corner radius
     local Corner = Instance.new("UICorner")
     Corner.CornerRadius = UDim.new(0, 6)
     Corner.Parent = MainFrame
 
-    -- Stroke
     local Stroke = Instance.new("UIStroke")
     Stroke.Color = Theme.Border
     Stroke.Thickness = 1
     Stroke.Parent = MainFrame
 
-    -- Shadow
     local Shadow = Instance.new("ImageLabel")
     Shadow.Name = "Shadow"
     Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -82,7 +77,6 @@ function Gui:Init()
     Shadow.SliceCenter = Rect.new(49, 49, 450, 450)
     Shadow.Parent = MainFrame
 
-    -- Title Bar (draggable)
     local TitleBar = Instance.new("Frame")
     TitleBar.Name = "TitleBar"
     TitleBar.Size = UDim2.new(1, 0, 0, 36)
@@ -118,7 +112,6 @@ function Gui:Init()
     Subtitle.TextXAlignment = Enum.TextXAlignment.Left
     Subtitle.Parent = TitleBar
 
-    -- Close button
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Name = "Close"
     CloseBtn.Size = UDim2.new(0, 36, 0, 36)
@@ -140,7 +133,6 @@ function Gui:Init()
         ScreenGui.Enabled = false
     end)
 
-    -- Minimize button
     local MinBtn = Instance.new("TextButton")
     MinBtn.Name = "Minimize"
     MinBtn.Size = UDim2.new(0, 36, 0, 36)
@@ -152,7 +144,6 @@ function Gui:Init()
     MinBtn.TextSize = 20
     MinBtn.Parent = TitleBar
 
-    -- Sidebar
     local Sidebar = Instance.new("Frame")
     Sidebar.Name = "Sidebar"
     Sidebar.Size = UDim2.new(0, 140, 1, -36)
@@ -180,7 +171,6 @@ function Gui:Init()
     TabLayout.Padding = UDim.new(0, 2)
     TabLayout.Parent = TabList
 
-    -- Content area
     local Content = Instance.new("Frame")
     Content.Name = "Content"
     Content.Size = UDim2.new(1, -140, 1, -36)
@@ -188,7 +178,6 @@ function Gui:Init()
     Content.BackgroundTransparency = 1
     Content.Parent = MainFrame
 
-    --// Dragging
     local dragging, dragStart, startPos
     TitleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -212,7 +201,6 @@ function Gui:Init()
         end
     end)
 
-    --// Store references
     self.ScreenGui = ScreenGui
     self.MainFrame = MainFrame
     self.TabList = TabList
@@ -221,7 +209,6 @@ function Gui:Init()
     self.Tabs = {}
     self.CurrentTab = nil
 
-    --// Keybind to toggle GUI
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.RightControl then
@@ -233,7 +220,6 @@ function Gui:Init()
     return self
 end
 
---// Create a tab
 function Gui:CreateTab(name, icon)
     local tabBtn = Instance.new("TextButton")
     tabBtn.Name = name .. "Tab"
@@ -276,12 +262,10 @@ function Gui:CreateTab(name, icon)
     }
     table.insert(self.Tabs, tabData)
 
-    -- Tab switching
     tabBtn.MouseButton1Click:Connect(function()
         self:SwitchTab(name)
     end)
 
-    -- Auto-select first tab
     if #self.Tabs == 1 then
         self:SwitchTab(name)
     end
@@ -289,7 +273,6 @@ function Gui:CreateTab(name, icon)
     return tabData
 end
 
---// Switch tab
 function Gui:SwitchTab(name)
     for _, tab in ipairs(self.Tabs) do
         if tab.Name == name then
@@ -305,7 +288,6 @@ function Gui:SwitchTab(name)
     end
 end
 
---// Create Toggle
 function Gui:CreateToggle(tabName, label, default, callback)
     local tab = nil
     for _, t in ipairs(self.Tabs) do
@@ -359,7 +341,6 @@ function Gui:CreateToggle(tabName, label, default, callback)
     return state
 end
 
---// Create Slider
 function Gui:CreateSlider(tabName, label, min, max, default, callback)
     local tab = nil
     for _, t in ipairs(self.Tabs) do
@@ -465,7 +446,6 @@ function Gui:CreateSlider(tabName, label, min, max, default, callback)
     return default
 end
 
---// Create Dropdown
 function Gui:CreateDropdown(tabName, label, options, default, callback)
     local tab = nil
     for _, t in ipairs(self.Tabs) do
@@ -508,7 +488,6 @@ function Gui:CreateDropdown(tabName, label, options, default, callback)
 
     local selected = default or options[1]
     dropBtn.MouseButton1Click:Connect(function()
-        -- Simple cycle
         local currentIdx = table.find(options, selected) or 1
         selected = options[(currentIdx % #options) + 1]
         dropBtn.Text = selected
@@ -519,7 +498,6 @@ function Gui:CreateDropdown(tabName, label, options, default, callback)
     return selected
 end
 
---// Create Button
 function Gui:CreateButton(tabName, label, callback)
     local tab = nil
     for _, t in ipairs(self.Tabs) do
@@ -557,7 +535,6 @@ function Gui:CreateButton(tabName, label, callback)
     table.insert(tab.Elements, {Type = "Button", Label = label})
 end
 
---// Create Section Header
 function Gui:CreateSection(tabName, text)
     local tab = nil
     for _, t in ipairs(self.Tabs) do
@@ -586,10 +563,8 @@ function Gui:CreateSection(tabName, text)
     line.Parent = section
 end
 
---// Notification
 function Gui:Notify(text, duration)
     duration = duration or 3
-
     local notif = Instance.new("Frame")
     notif.Size = UDim2.new(0, 280, 0, 40)
     notif.Position = UDim2.new(1, -300, 1, -60)
@@ -617,7 +592,6 @@ function Gui:Notify(text, duration)
     notifText.TextXAlignment = Enum.TextXAlignment.Left
     notifText.Parent = notif
 
-    -- Animate in
     notif.Position = UDim2.new(1, 20, 1, -60)
     TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
         Position = UDim2.new(1, -300, 1, -60)

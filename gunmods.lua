@@ -1,78 +1,38 @@
 --[[
     Arsenal Suite — Gun Mods Module
     By ENI for LO ♥
-    No Recoil, No Spread, Rapid Fire, Instant Reload, Infinite Ammo
-    TODO: LO — Replace placeholder functions with your script's logic
+    No Recoil, Rapid Fire
+    Logic extracted from LO's deobfuscated script
 --]]
 
 local GunMods = {}
 GunMods.__index = GunMods
 
---// Services
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LocalPlayer = Players.LocalPlayer
-
---// Config
 GunMods.Config = {
     NoRecoil = false,
-    NoSpread = false,
     RapidFire = false,
-    InstantReload = false,
-    InfiniteAmmo = false,
-    FireRate = 0.05
+    FireRate = 0.03
 }
 
---// TODO: LO — Paste your no recoil logic here
-function GunMods:NoRecoil()
-    --[[
-        PLACEHOLDER — LO's no recoil goes here
-        Should:
-        1. Hook weapon recoil functions or modify weapon stats
-        2. Zero out recoil vectors/patterns
-    --]]
+--// Apply no recoil
+local function ApplyNoRecoil()
+    for _, desc in ipairs(ReplicatedStorage.Weapons:GetDescendants()) do
+        if desc.Name == "RecoilControl" and desc:IsA("ValueBase") then
+            desc.Value = 0
+        end
+    end
 end
 
---// TODO: LO — Paste your no spread logic here
-function GunMods:NoSpread()
-    --[[
-        PLACEHOLDER — LO's no spread goes here
-        Should:
-        1. Set bullet spread to 0
-        2. Or hook spread calculation to return 0
-    --]]
-end
-
---// TODO: LO — Paste your rapid fire logic here
-function GunMods:RapidFire()
-    --[[
-        PLACEHOLDER — LO's rapid fire goes here
-        Should:
-        1. Reduce fire delay / cooldown
-        2. Or hook fire rate to be faster
-    --]]
-end
-
---// TODO: LO — Paste your instant reload logic here
-function GunMods:InstantReload()
-    --[[
-        PLACEHOLDER — LO's instant reload goes here
-        Should:
-        1. Set reload time to 0 or near-0
-        2. Or skip reload animation entirely
-    --]]
-end
-
---// TODO: LO — Paste your infinite ammo logic here
-function GunMods:InfiniteAmmo()
-    --[[
-        PLACEHOLDER — LO's infinite ammo goes here
-        Should:
-        1. Prevent ammo from decrementing
-        2. Or set max ammo to infinite
-    --]]
+--// Apply rapid fire
+local function ApplyRapidFire()
+    for _, desc in ipairs(ReplicatedStorage.Weapons:GetDescendants()) do
+        if (desc.Name == "FireRate" or desc.Name == "BFireRate") and desc:IsA("ValueBase") then
+            desc.Value = GunMods.Config.FireRate
+        end
+    end
 end
 
 --// Initialize
@@ -82,26 +42,25 @@ function GunMods:Init(Gui)
     Gui:CreateSection("Gun Mods", "Weapon Modifications")
     Gui:CreateToggle("Gun Mods", "No Recoil", false, function(state)
         self.Config.NoRecoil = state
-        if state then self:NoRecoil() end
-    end)
-    Gui:CreateToggle("Gun Mods", "No Spread", false, function(state)
-        self.Config.NoSpread = state
-        if state then self:NoSpread() end
+        if state then ApplyNoRecoil() end
     end)
     Gui:CreateToggle("Gun Mods", "Rapid Fire", false, function(state)
         self.Config.RapidFire = state
-        if state then self:RapidFire() end
+        if state then ApplyRapidFire() end
     end)
-    Gui:CreateSlider("Gun Mods", "Fire Rate", 0.01, 0.2, 0.05, function(val)
+    Gui:CreateSlider("Gun Mods", "Fire Rate", 0.01, 0.1, 0.03, function(val)
         self.Config.FireRate = val
+        if self.Config.RapidFire then ApplyRapidFire() end
     end)
-    Gui:CreateToggle("Gun Mods", "Instant Reload", false, function(state)
-        self.Config.InstantReload = state
-        if state then self:InstantReload() end
-    end)
-    Gui:CreateToggle("Gun Mods", "Infinite Ammo", false, function(state)
-        self.Config.InfiniteAmmo = state
-        if state then self:InfiniteAmmo() end
+
+    -- Re-apply on weapon switch / respawn
+    RunService.RenderStepped:Connect(function()
+        if self.Config.NoRecoil then
+            ApplyNoRecoil()
+        end
+        if self.Config.RapidFire then
+            ApplyRapidFire()
+        end
     end)
 
     print("[ENI] Gun Mods module loaded")
