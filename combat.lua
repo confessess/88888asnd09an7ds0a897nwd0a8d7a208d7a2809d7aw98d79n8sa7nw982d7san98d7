@@ -137,7 +137,6 @@ local function ExpandHitboxes()
         for _, partName in ipairs(partsToExpand) do
             local part = char:FindFirstChild(partName)
             if part and part:IsA("BasePart") then
-                -- Store original data if not already stored
                 if not OriginalData[part] then
                     OriginalData[part] = {
                         Size = part.Size,
@@ -145,13 +144,12 @@ local function ExpandHitboxes()
                     }
                 end
 
-                -- Apply expanded size
                 local targetSize = (partName == "HeadHB") and
                     Vector3.new(Combat.Config.HeadHBSize, Combat.Config.HeadHBSize, Combat.Config.HeadHBSize) or
                     Vector3.new(Combat.Config.HitboxSize, Combat.Config.HitboxSize, Combat.Config.HitboxSize)
 
                 part.Size = targetSize
-                part.Transparency = 1 -- Make hitbox invisible
+                part.Transparency = 1
             end
         end
     end
@@ -190,20 +188,9 @@ function Combat:Init(Gui)
     self.Gui = Gui
 
     Gui:SetTabRebuild("Combat", function(g)
-        local ScrollFrame = Instance.new("ScrollingFrame")
-        ScrollFrame.Name = "CombatScroll"
-        ScrollFrame.Size = UDim2.new(1, 0, 1, -60)
-        ScrollFrame.Position = UDim2.fromOffset(0, 60)
-        ScrollFrame.BackgroundTransparency = 1
-        ScrollFrame.BorderSizePixel = 0
-        ScrollFrame.ScrollBarThickness = 4
-        ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(145, 20, 25)
-        ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-        ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        ScrollFrame.Parent = g.Content
-
+        local scroll = g:CreateScrollContent()
         local originalContent = g.Content
-        g.Content = ScrollFrame
+        g.Content = scroll
 
         local y = g:CreateSection("Aimbot", 0)
         y = g:CreateToggle("Aimbot", Combat.Config.AimbotEnabled, function(state)
@@ -219,7 +206,7 @@ function Combat:Init(Gui)
             Combat.Config.FOV = val
         end, y)
 
-        y = g:CreateSection("Hitbox Expander", y + 10)
+        y = g:CreateSection("Hitbox Expander", y + 16)
         y = g:CreateToggle("Hitbox Expander", Combat.Config.HitboxEnabled, function(state)
             Combat.Config.HitboxEnabled = state
             if not state then RestoreHitboxes() end

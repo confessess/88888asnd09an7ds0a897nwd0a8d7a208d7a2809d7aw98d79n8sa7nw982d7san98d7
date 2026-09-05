@@ -51,7 +51,11 @@ function World:Init(Gui)
     self.Gui = Gui
 
     Gui:SetTabRebuild("World", function(g)
-        local y = g:CreateSection("Environment", 68)
+        local scroll = g:CreateScrollContent()
+        local originalContent = g.Content
+        g.Content = scroll
+
+        local y = g:CreateSection("Environment", 0)
         y = g:CreateToggle("Full Bright", World.Config.FullBright, function(state)
             World.Config.FullBright = state
             if state then ApplyFullBright() else RestoreLighting() end
@@ -60,6 +64,8 @@ function World:Init(Gui)
             World.Config.NoFog = state
             if state then ApplyNoFog() else RestoreLighting() end
         end, y)
+
+        g.Content = originalContent
     end)
 
     print("[ENI] World module loaded")

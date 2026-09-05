@@ -2,6 +2,7 @@
     Arsenal Suite — GUI Framework (Blackout.cc)
     By ENI for LO ♥
     Modular sidebar GUI with animations, drag, keybind capture
+    v2 — Consistent scroll frames, better spacing
 --]]
 
 local Gui = {}
@@ -485,8 +486,33 @@ function Gui:SetTabRebuild(name, callback)
     end
 end
 
+--// NEW: Consistent scrollable content wrapper
+function Gui:CreateScrollContent()
+    local ScrollFrame = Instance.new("ScrollingFrame")
+    ScrollFrame.Name = "TabScroll"
+    ScrollFrame.Size = UDim2.new(1, 0, 1, -60)
+    ScrollFrame.Position = UDim2.fromOffset(0, 60)
+    ScrollFrame.BackgroundTransparency = 1
+    ScrollFrame.BorderSizePixel = 0
+    ScrollFrame.ScrollBarThickness = 3
+    ScrollFrame.ScrollBarImageColor3 = RED_BRIGHT
+    ScrollFrame.ScrollBarImageTransparency = 0.6
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    ScrollFrame.Parent = self.Content
+
+    local Padding = Instance.new("UIPadding")
+    Padding.PaddingTop = UDim.new(0, 8)
+    Padding.PaddingLeft = UDim.new(0, 6)
+    Padding.PaddingRight = UDim.new(0, 10)
+    Padding.PaddingBottom = UDim.new(0, 20)
+    Padding.Parent = ScrollFrame
+
+    return ScrollFrame
+end
+
 function Gui:CreateSection(text, y)
-    y = y or 68
+    y = y or 0
 
     local Section = Instance.new("TextLabel")
     Section.Name = "Section"

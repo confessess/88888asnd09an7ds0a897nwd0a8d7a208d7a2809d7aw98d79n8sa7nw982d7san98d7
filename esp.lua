@@ -228,7 +228,11 @@ function ESP:Init(Gui)
     self.Gui = Gui
 
     Gui:SetTabRebuild("ESP", function(g)
-        local y = g:CreateSection("Visuals", 68)
+        local scroll = g:CreateScrollContent()
+        local originalContent = g.Content
+        g.Content = scroll
+
+        local y = g:CreateSection("Visuals", 0)
         y = g:CreateToggle("ESP Master", ESP.Config.Enabled, function(state)
             ESP.Config.Enabled = state
             if not state then
@@ -243,7 +247,7 @@ function ESP:Init(Gui)
             ESP.Config.TeamCheck = state
         end, y)
 
-        y = g:CreateSection("ESP Features", y + 10)
+        y = g:CreateSection("ESP Features", y + 16)
         y = g:CreateToggle("Skeleton", ESP.Config.Skeleton, function(state)
             ESP.Config.Skeleton = state
         end, y)
@@ -253,6 +257,8 @@ function ESP:Init(Gui)
         y = g:CreateToggle("Head Dot", ESP.Config.HeadDot, function(state)
             ESP.Config.HeadDot = state
         end, y)
+
+        g.Content = originalContent
     end)
 
     print("[ENI] ESP module loaded")

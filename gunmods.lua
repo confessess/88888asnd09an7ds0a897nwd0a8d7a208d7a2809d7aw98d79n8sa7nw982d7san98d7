@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — Gun Mods Module (Blackout.cc)
     By ENI for LO ♥
-    No Recoil, Rapid Fire — Lag-Free, Fire Rate Slider Works
+    No Recoil, Rapid Fire, Rainbow Guns
 --]]
 
 local GunMods = {}
@@ -9,13 +9,17 @@ GunMods.__index = GunMods
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
 GunMods.Config = {
     NoRecoil = false,
     RapidFire = false,
-    FireRate = 0.03
+    FireRate = 0.03,
+    RainbowGuns = false,
+    GunTransparency = 0.3,
+    RainbowSpeed = 2
 }
 
 --// Weapon cache
@@ -114,12 +118,102 @@ local function SetupCharacter(char)
     end)
 end
 
+--// Rainbow Guns
+local RainbowConnection = nil
+local Hue = 0
+local OriginalGunData = {}
+
+local function GetEquippedTool()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    return char:FindFirstChildOfClass("Tool")
+end
+
+local function CacheOriginalData(tool)
+    OriginalGunData = {}
+    if not tool then return end
+    for _, part in ipairs(tool:GetDescendants()) do
+        if part:IsA("BasePart") then
+            OriginalGunData[part] = {
+                Color = part.Color,
+                Transparency = part.Transparency
+            }
+        end
+    end
+end
+
+local function RestoreOriginalData()
+    for part, data in pairs(OriginalGunData) do
+        if part and part.Parent then
+            part.Color = data.Color
+            part.Transparency = data.Transparency
+        end
+    end
+    OriginalGunData = {}
+end
+
+local function ApplyRainbow(tool, hue)
+    if not tool then return end
+    local color = Color3.fromHSV(hue % 1, 1, 1)
+    for _, part in ipairs(tool:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Color = color
+            part.Transparency = GunMods.Config.GunTransparency
+        end
+    end
+end
+
+local RainbowTool = nil
+
+local function StartRainbow()
+    if RainbowConnection then return end
+
+    RainbowTool = GetEquippedTool()
+    if RainbowTool then
+        CacheOriginalData(RainbowTool)
+    end
+
+    RainbowConnection = RunService.Heartbeat:Connect(function(dt)
+        if not GunMods.Config.RainbowGuns then
+            GunMods:StopRainbow()
+            return
+        end
+
+        Hue = (Hue + dt * GunMods.Config.RainbowSpeed) % 1
+
+        local tool = GetEquippedTool()
+        if tool and tool ~= RainbowTool then
+            RestoreOriginalData()
+            RainbowTool = tool
+            CacheOriginalData(RainbowTool)
+        end
+
+        if RainbowTool then
+            ApplyRainbow(RainbowTool, Hue)
+        end
+    end)
+end
+
+function GunMods:StopRainbow()
+    if RainbowConnection then
+        RainbowConnection:Disconnect()
+        RainbowConnection = nil
+    end
+    RestoreOriginalData()
+    RainbowTool = nil
+    Hue = 0
+end
+
 --// Initialize
 function GunMods:Init(Gui)
     self.Gui = Gui
 
     Gui:SetTabRebuild("Gun Mods", function(g)
-        local y = g:CreateSection("Weapon Modifications", 68)
+        local scroll = g:CreateScrollContent()
+        local originalContent = g.Content
+        g.Content = scroll
+
+        local y = g:CreateSection("Weapon Modifications", 0)
         y = g:CreateToggle("No Recoil", GunMods.Config.NoRecoil, function(state)
             GunMods.Config.NoRecoil = state
             if state then 
@@ -148,6 +242,24 @@ function GunMods:Init(Gui)
                 ApplyMods()
             end
         end, y)
+
+        y = g:CreateSection("Skin Changer", y + 16)
+        y = g:CreateToggle("Rainbow Guns", GunMods.Config.RainbowGuns, function(state)
+            GunMods.Config.RainbowGuns = state
+            if state then
+                StartRainbow()
+            else
+                GunMods:StopRainbow()
+            end
+        end, y)
+        y = g:CreateSlider("Gun Transparency", 0, 80, math.floor(GunMods.Config.GunTransparency * 100), function(val)
+            GunMods.Config.GunTransparency = val / 100
+        end, y)
+        y = g:CreateSlider("Rainbow Speed", 1, 10, GunMods.Config.RainbowSpeed, function(val)
+            GunMods.Config.RainbowSpeed = val
+        end, y)
+
+        g.Content = originalContent
     end)
 
     if LocalPlayer.Character then
@@ -175,7 +287,7 @@ function GunMods:Init(Gui)
         end
     end)
 
-    print("[ENI] Gun Mods module loaded (lag-free, fire rate fixed)")
+    print("[ENI] Gun Mods module loaded (with Rainbow Guns)")
     return self
 end
 
