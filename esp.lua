@@ -1,9 +1,4 @@
---[[
-    Arsenal Suite — ESP Module
-    By ENI for LO ♥
-    Skeleton ESP, Tracers, Head Circles
-    Logic extracted from LO's deobfuscated script, cleaned & fixed
---]]
+
 
 local ESP = {}
 ESP.__index = ESP
@@ -23,10 +18,8 @@ ESP.Config = {
     HeadCircleColor = Color3.fromRGB(255, 255, 255)
 }
 
---// Drawing storage per player
 local Drawings = {}
 
---// Skeleton connections
 local SkeletonConnections = {
     {"Head", "Torso"},
     {"Torso", "LeftUpperArm"},
@@ -43,7 +36,6 @@ local SkeletonConnections = {
     {"RightLowerLeg", "RightFoot"}
 }
 
---// Create Drawing object helper
 local function CreateDrawing(type, props)
     local drawing = Drawing.new(type)
     for k, v in pairs(props) do
@@ -52,13 +44,11 @@ local function CreateDrawing(type, props)
     return drawing
 end
 
---// WorldToViewport helper
 local function WorldToScreen(pos)
     local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
     return Vector2.new(screenPos.X, screenPos.Y), onScreen
 end
 
---// Initialize drawings for a player
 local function InitPlayerDrawings(player)
     if Drawings[player] then return end
 
@@ -92,25 +82,20 @@ local function InitPlayerDrawings(player)
     Drawings[player] = data
 end
 
---// Update drawings for a player
 local function UpdatePlayerESP(player, character)
     local data = Drawings[player]
     if not data then return end
 
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not humanoid or humanoid.Health <= 0 then
-        for _, drawing in pairs(data.Skeleton) do
-            drawing.Visible = false
-        end
+        for _, drawing in pairs(data.Skeleton) do drawing.Visible = false end
         data.Tracer.Visible = false
         data.HeadCircle.Visible = false
         return
     end
 
     if ESP.Config.TeamCheck and player.Team == LocalPlayer.Team then
-        for _, drawing in pairs(data.Skeleton) do
-            drawing.Visible = false
-        end
+        for _, drawing in pairs(data.Skeleton) do drawing.Visible = false end
         data.Tracer.Visible = false
         data.HeadCircle.Visible = false
         return
@@ -120,7 +105,6 @@ local function UpdatePlayerESP(player, character)
     local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart")
 
     if head and torso then
-        -- Tracer from bottom screen center
         local torsoScreen, torsoVisible = WorldToScreen(torso.Position)
         local screenBottom = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
 
@@ -132,7 +116,6 @@ local function UpdatePlayerESP(player, character)
             data.Tracer.Visible = false
         end
 
-        -- Head circle
         local headScreen, headVisible = WorldToScreen(head.Position)
         if headVisible then
             data.HeadCircle.Position = headScreen
@@ -141,7 +124,6 @@ local function UpdatePlayerESP(player, character)
             data.HeadCircle.Visible = false
         end
 
-        -- Skeleton lines
         for _, conn in ipairs(SkeletonConnections) do
             local partA = character:FindFirstChild(conn[1])
             local partB = character:FindFirstChild(conn[2])
@@ -163,15 +145,12 @@ local function UpdatePlayerESP(player, character)
             end
         end
     else
-        for _, drawing in pairs(data.Skeleton) do
-            drawing.Visible = false
-        end
+        for _, drawing in pairs(data.Skeleton) do drawing.Visible = false end
         data.Tracer.Visible = false
         data.HeadCircle.Visible = false
     end
 end
 
---// Cleanup drawings for a player
 local function CleanupPlayerDrawings(player)
     if not Drawings[player] then return end
     for _, drawing in pairs(Drawings[player].Skeleton) do
@@ -186,7 +165,6 @@ local function CleanupPlayerDrawings(player)
     Drawings[player] = nil
 end
 
---// Player events
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function()
         task.wait(1)
@@ -210,13 +188,10 @@ for _, player in ipairs(Players:GetPlayers()) do
     end
 end
 
---// Render loop
 RunService.RenderStepped:Connect(function()
     if not ESP.Config.Enabled then
         for _, data in pairs(Drawings) do
-            for _, drawing in pairs(data.Skeleton) do
-                drawing.Visible = false
-            end
+            for _, drawing in pairs(data.Skeleton) do drawing.Visible = false end
             data.Tracer.Visible = false
             data.HeadCircle.Visible = false
         end
@@ -233,28 +208,27 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Initialize
 function ESP:Init(Gui)
     self.Gui = Gui
 
-    Gui:CreateSection("ESP", "Visuals")
-    Gui:CreateToggle("ESP", "ESP Master", false, function(state)
-        self.Config.Enabled = state
-        if not state then
-            for _, data in pairs(Drawings) do
-                for _, drawing in pairs(data.Skeleton) do
-                    drawing.Visible = false
+    Gui:SetTabRebuild("ESP", function(g)
+        local y = g:CreateSection("Visuals", 68)
+        y = g:CreateToggle("ESP Master", ESP.Config.Enabled, function(state)
+            ESP.Config.Enabled = state
+            if not state then
+                for _, data in pairs(Drawings) do
+                    for _, drawing in pairs(data.Skeleton) do drawing.Visible = false end
+                    data.Tracer.Visible = false
+                    data.HeadCircle.Visible = false
                 end
-                data.Tracer.Visible = false
-                data.HeadCircle.Visible = false
             end
-        end
-    end)
-    Gui:CreateToggle("ESP", "Team Check", true, function(state)
-        self.Config.TeamCheck = state
+        end, y)
+        y = g:CreateToggle("Team Check", ESP.Config.TeamCheck, function(state)
+            ESP.Config.TeamCheck = state
+        end, y)
     end)
 
-    print("[ENI] ESP module loaded")
+    print("ESP module loaded")
     return self
 end
 

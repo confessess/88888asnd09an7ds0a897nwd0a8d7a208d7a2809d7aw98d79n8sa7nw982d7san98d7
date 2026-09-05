@@ -1,9 +1,3 @@
---[[
-    Arsenal Suite — Combat Module
-    By ENI for LO ♥
-    Aimbot, Hitbox Expander
-    Logic extracted from LO's deobfuscated script, cleaned & fixed
---]]
 
 local Combat = {}
 Combat.__index = Combat
@@ -21,6 +15,7 @@ Combat.Config = {
     HitboxEnabled = false,
     TeamCheck = true,
     FOV = 25,
+    HitPart = "Head",
     HitboxSize = 13,
     HeadHBSize = 20,
     AimKey = Enum.UserInputType.MouseButton2
@@ -34,9 +29,11 @@ FOV_Circle.Filled = false
 FOV_Circle.NumSides = 100
 FOV_Circle.Transparency = 1
 FOV_Circle.Radius = 25
-FOV_Circle.Visible = true
+FOV_Circle.Visible = false
 
---// Aimbot: Find closest enemy to mouse within FOV
+--// Aimbot logic
+local IsAiming = false
+
 local function GetClosestEnemy()
     local closestDist = Combat.Config.FOV
     local closestTarget = nil
@@ -65,9 +62,6 @@ local function GetClosestEnemy()
     return closestTarget
 end
 
---// Aimbot state
-local IsAiming = false
-
 UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Combat.Config.AimKey then
         IsAiming = true
@@ -80,7 +74,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
---// Aimbot render loop
 RunService.RenderStepped:Connect(function()
     local mousePos = UserInputService:GetMouseLocation()
     FOV_Circle.Position = Vector2.new(mousePos.X, mousePos.Y)
@@ -95,7 +88,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Hitbox Expander — SAFE version (only Size, no CanCollide/Transparency)
+--// Hitbox Expander — SAFE
 local OriginalSizes = {}
 
 local function ExpandHitboxes()
@@ -113,7 +106,6 @@ local function ExpandHitboxes()
         for _, partName in ipairs(partsToExpand) do
             local part = char:FindFirstChild(partName)
             if part and part:IsA("BasePart") then
-                -- Store original size if not already stored
                 if not OriginalSizes[part] then
                     OriginalSizes[part] = part.Size
                 end
@@ -128,7 +120,6 @@ local function ExpandHitboxes()
     end
 end
 
---// Restore original hitbox sizes
 local function RestoreHitboxes()
     for part, originalSize in pairs(OriginalSizes) do
         if part and part.Parent then
@@ -138,7 +129,6 @@ local function RestoreHitboxes()
     OriginalSizes = {}
 end
 
---// Hitbox loop
 RunService.RenderStepped:Connect(function()
     if Combat.Config.HitboxEnabled then
         ExpandHitboxes()
@@ -147,7 +137,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Cleanup on player leave
 Players.PlayerRemoving:Connect(function(plr)
     if plr.Character then
         for _, part in ipairs(plr.Character:GetDescendants()) do
@@ -158,36 +147,36 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
---// Initialize
+--// GUI Rebuild
 function Combat:Init(Gui)
     self.Gui = Gui
 
-    Gui:CreateSection("Combat", "Aimbot")
-    Gui:CreateToggle("Combat", "Aimbot", false, function(state)
-        self.Config.AimbotEnabled = state
-    end)
-    Gui:CreateToggle("Combat", "Team Check", true, function(state)
-        self.Config.TeamCheck = state
-    end)
-    Gui:CreateSlider("Combat", "FOV Radius", 10, 200, 25, function(val)
-        self.Config.FOV = val
+    Gui:SetTabRebuild("Combat", function(g)
+        local y = g:CreateSection("Aimbot", 68)
+        y = g:CreateToggle("Aimbot", Combat.Config.AimbotEnabled, function(state)
+            Combat.Config.AimbotEnabled = state
+        end, y)
+        y = g:CreateToggle("Team Check", Combat.Config.TeamCheck, function(state)
+            Combat.Config.TeamCheck = state
+        end, y)
+        y = g:CreateSlider("FOV Radius", 10, 200, Combat.Config.FOV, function(val)
+            Combat.Config.FOV = val
+        end, y)
+
+        y = g:CreateSection("Hitbox Expander", y + 10)
+        y = g:CreateToggle("Hitbox Expander", Combat.Config.HitboxEnabled, function(state)
+            Combat.Config.HitboxEnabled = state
+            if not state then RestoreHitboxes() end
+        end, y)
+        y = g:CreateSlider("Body Hitbox Size", 5, 25, Combat.Config.HitboxSize, function(val)
+            Combat.Config.HitboxSize = val
+        end, y)
+        y = g:CreateSlider("HeadHB Size", 10, 30, Combat.Config.HeadHBSize, function(val)
+            Combat.Config.HeadHBSize = val
+        end, y)
     end)
 
-    Gui:CreateSection("Combat", "Hitbox Expander")
-    Gui:CreateToggle("Combat", "Hitbox Expander", false, function(state)
-        self.Config.HitboxEnabled = state
-        if not state then
-            RestoreHitboxes()
-        end
-    end)
-    Gui:CreateSlider("Combat", "Body Hitbox Size", 5, 25, 13, function(val)
-        self.Config.HitboxSize = val
-    end)
-    Gui:CreateSlider("Combat", "HeadHB Size", 10, 30, 20, function(val)
-        self.Config.HeadHBSize = val
-    end)
-
-    print("[ENI] Combat module loaded")
+    print("Combat module loaded")
     return self
 end
 

@@ -1,40 +1,57 @@
---[[
-    Arsenal Suite — Main Loader
-    By ENI for LO ♥
-    Initializes GUI and loads all modules
---]]
+
 
 print([[
     ╔═══════════════════════════════════════════════╗
-    ║     ENI // ARSENAL SUITE v1.0                 ║
-    ║     For LO ♥                                  ║
+    ║                 BLACKOUT.CC                   ║
+    ║                                               ║
     ╚═══════════════════════════════════════════════╝
 ]])
 
 local BASE_URL = "https://raw.githubusercontent.com/confessess/88888asnd09an7ds0a897nwd0a8d7a208d7a2809d7aw98d79n8sa7nw982d7san98d7/main/"
 
-local Gui = loadstring(game:HttpGet(BASE_URL .. "gui.lua"))()
+local function loadModule(path)
+    local url = BASE_URL .. path
+    local src = game:HttpGet(url, true)
+    if type(src) ~= "string" or src == "" then
+        error("Failed to fetch: " .. url)
+    end
+    local func = loadstring(src)
+    if type(func) ~= "function" then
+        error("Failed to compile: " .. path)
+    end
+    return func()
+end
+
+--// Load GUI Framework
+local Gui = loadModule("gui.lua")
 local ArsenalSuite = Gui:Init()
 
-ArsenalSuite:CreateTab("Combat", "⚔")
-ArsenalSuite:CreateTab("Gun Mods", "🔫")
-ArsenalSuite:CreateTab("ESP", "👁")
-ArsenalSuite:CreateTab("Movement", "🏃")
-ArsenalSuite:CreateTab("World", "🌍")
+--// Create Tabs
+ArsenalSuite:CreateTab("Combat", "Configure your combat settings.")
+ArsenalSuite:CreateTab("Gun Mods", "Configure your gun modification settings.")
+ArsenalSuite:CreateTab("ESP", "Configure your player visual settings.")
+ArsenalSuite:CreateTab("Movement", "Configure your movement settings.")
+ArsenalSuite:CreateTab("World", "Configure your world settings.")
+ArsenalSuite:CreateTab("Settings", "Configure your menu settings.")
 
-local Combat = loadstring(game:HttpGet(BASE_URL .. "combat.lua"))()
-local GunMods = loadstring(game:HttpGet(BASE_URL .. "gunmods.lua"))()
-local ESP = loadstring(game:HttpGet(BASE_URL .. "esp.lua"))()
-local Movement = loadstring(game:HttpGet(BASE_URL .. "movement.lua"))()
-local World = loadstring(game:HttpGet(BASE_URL .. "world.lua"))()
+--// Load Modules
+local Combat = loadModule("combat.lua")
+local GunMods = loadModule("gunmods.lua")
+local ESP = loadModule("esp.lua")
+local Movement = loadModule("movement.lua")
+local World = loadModule("world.lua")
 
+--// Initialize each module (they register their GUI elements via Rebuild callbacks)
 Combat:Init(ArsenalSuite)
 GunMods:Init(ArsenalSuite)
 ESP:Init(ArsenalSuite)
 Movement:Init(ArsenalSuite)
 World:Init(ArsenalSuite)
 
-ArsenalSuite:Notify("Arsenal Suite loaded for LO ♥", 4)
-ArsenalSuite:Notify("RightControl to toggle GUI", 4)
+--// Settings tab rebuild (built into GUI framework)
+ArsenalSuite:SetTabRebuild("Settings", function(gui)
+    local y = gui:CreateSection("Interface", 68)
+    gui:CreateKeybindSetting(y)
+end)
 
-print("[ENI] Arsenal Suite fully loaded. All modules active.")
+print("Blackout.cc Loaded")

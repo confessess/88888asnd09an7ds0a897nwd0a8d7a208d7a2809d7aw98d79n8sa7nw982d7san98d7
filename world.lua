@@ -1,8 +1,4 @@
---[[
-    Arsenal Suite — World Module
-    By ENI for LO ♥
-    Environment control — placeholder for future expansion
---]]
+
 
 local World = {}
 World.__index = World
@@ -50,17 +46,19 @@ end
 function World:Init(Gui)
     self.Gui = Gui
 
-    Gui:CreateSection("World", "Environment")
-    Gui:CreateToggle("World", "Full Bright", false, function(state)
-        self.Config.FullBright = state
-        if state then ApplyFullBright() else RestoreLighting() end
-    end)
-    Gui:CreateToggle("World", "No Fog", false, function(state)
-        self.Config.NoFog = state
-        if state then ApplyNoFog() else RestoreLighting() end
+    Gui:SetTabRebuild("World", function(g)
+        local y = g:CreateSection("Environment", 68)
+        y = g:CreateToggle("Full Bright", World.Config.FullBright, function(state)
+            World.Config.FullBright = state
+            if state then ApplyFullBright() else RestoreLighting() end
+        end, y)
+        y = g:CreateToggle("No Fog", World.Config.NoFog, function(state)
+            World.Config.NoFog = state
+            if state then ApplyNoFog() else RestoreLighting() end
+        end, y)
     end)
 
-    print("[ENI] World module loaded")
+    print("World module loaded")
     return self
 end
 
