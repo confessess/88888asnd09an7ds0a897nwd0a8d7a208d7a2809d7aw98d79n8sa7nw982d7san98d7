@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — GUI Framework (Blackout.cc)
     By ENI for LO ♥
-    v6 — Larger GUI, fixed dropdowns, more spacing, minimize button
+    v7 — Fixed scrollbar overlap, proper spacing throughout
 --]]
 
 local Gui = {}
@@ -56,7 +56,7 @@ function Gui:Init()
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = PlayerGui
 
-    --// LARGER GUI: 780 x 520
+    --// GUI: 780 x 520
     local Main = Instance.new("Frame")
     Main.Name = "Main"
     Main.Size = UDim2.fromOffset(780, 520)
@@ -189,7 +189,7 @@ function Gui:Init()
     Subtitle.ZIndex = 6
     Subtitle.Parent = Top
 
-    --// MINIMIZE BUTTON (—)
+    --// MINIMIZE BUTTON
     local Minimize = Instance.new("TextButton")
     Minimize.Name = "Minimize"
     Minimize.Size = UDim2.fromOffset(32, 30)
@@ -213,7 +213,7 @@ function Gui:Init()
     MinimizeStroke.Thickness = 1
     MinimizeStroke.Parent = Minimize
 
-    --// CLOSE BUTTON (×)
+    --// CLOSE BUTTON
     local Close = Instance.new("TextButton")
     Close.Name = "Close"
     Close.Size = UDim2.fromOffset(32, 30)
@@ -245,7 +245,7 @@ function Gui:Init()
         MinimizeStroke.Color = BORDER
     end)
 
-    --// Sidebar — MORE SPACE from content
+    --// Sidebar
     local Sidebar = Instance.new("Frame")
     Sidebar.Name = "Sidebar"
     Sidebar.Size = UDim2.fromOffset(170, 428)
@@ -277,7 +277,7 @@ function Gui:Init()
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     TabLayout.Parent = Sidebar
 
-    --// Content — MORE SPACE from sidebar (200px vs 172px before)
+    --// Content
     local Content = Instance.new("Frame")
     Content.Name = "Content"
     Content.Size = UDim2.new(1, -228, 1, -92)
@@ -601,7 +601,7 @@ function Gui:SetTabRebuild(name, callback)
     if tab then tab.Rebuild = callback end
 end
 
---// Scroll content
+--// Scroll content — FIXED: extra right padding so scrollbar never overlaps elements
 function Gui:CreateScrollContent()
     local ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "TabScroll"
@@ -609,25 +609,26 @@ function Gui:CreateScrollContent()
     ScrollFrame.Position = UDim2.fromOffset(0, 54)
     ScrollFrame.BackgroundTransparency = 1
     ScrollFrame.BorderSizePixel = 0
-    ScrollFrame.ScrollBarThickness = 3
+    ScrollFrame.ScrollBarThickness = 4
     ScrollFrame.ScrollBarImageColor3 = RED_BRIGHT
-    ScrollFrame.ScrollBarImageTransparency = 0.6
+    ScrollFrame.ScrollBarImageTransparency = 0.5
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
     ScrollFrame.ZIndex = 3
     ScrollFrame.Parent = self.Content
 
+    --// KEY FIX: 20px right padding so scrollbar sits in empty space, not over buttons
     local Padding = Instance.new("UIPadding")
     Padding.PaddingTop = UDim.new(0, 6)
     Padding.PaddingLeft = UDim.new(0, 4)
-    Padding.PaddingRight = UDim.new(0, 8)
+    Padding.PaddingRight = UDim.new(0, 20)
     Padding.PaddingBottom = UDim.new(0, 12)
     Padding.Parent = ScrollFrame
 
     return ScrollFrame
 end
 
---// ═══════════ ELEMENTS ═══════════
+--// ═══════════ ELEMENTS — all with right-margin awareness ═══════════
 
 function Gui:CreateSection(text, y)
     y = y or 0
@@ -663,7 +664,7 @@ function Gui:CreateToggle(label, default, callback, y)
     ToggleFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -60, 0, 36)
+    Label.Size = UDim2.new(1, -70, 0, 36)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
@@ -673,9 +674,10 @@ function Gui:CreateToggle(label, default, callback, y)
     Label.ZIndex = 4
     Label.Parent = ToggleFrame
 
+    --// FIXED: 24px from right edge, clear of scrollbar
     local ToggleBtn = Instance.new("TextButton")
     ToggleBtn.Size = UDim2.fromOffset(46, 26)
-    ToggleBtn.Position = UDim2.new(1, -50, 0, 5)
+    ToggleBtn.Position = UDim2.new(1, -70, 0, 5)
     ToggleBtn.BackgroundColor3 = default and RED_BRIGHT or DARK_PANEL
     ToggleBtn.BorderSizePixel = 0
     ToggleBtn.Text = default and "ON" or "OFF"
@@ -724,7 +726,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     SliderFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -55, 0, 20)
+    Label.Size = UDim2.new(1, -70, 0, 20)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
@@ -734,9 +736,10 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     Label.ZIndex = 4
     Label.Parent = SliderFrame
 
+    --// FIXED: value text clear of scrollbar
     local ValueText = Instance.new("TextLabel")
     ValueText.Size = UDim2.fromOffset(48, 20)
-    ValueText.Position = UDim2.new(1, -48, 0, 0)
+    ValueText.Position = UDim2.new(1, -70, 0, 0)
     ValueText.BackgroundTransparency = 1
     ValueText.Text = tostring(default)
     ValueText.TextColor3 = RED_BRIGHT
@@ -746,8 +749,9 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     ValueText.ZIndex = 4
     ValueText.Parent = SliderFrame
 
+    --// FIXED: track doesn't extend under scrollbar
     local Track = Instance.new("Frame")
-    Track.Size = UDim2.new(1, -8, 0, 4)
+    Track.Size = UDim2.new(1, -16, 0, 4)
     Track.Position = UDim2.fromOffset(4, 36)
     Track.BackgroundColor3 = DARK_PANEL
     Track.BorderSizePixel = 0
@@ -810,7 +814,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     return y + 56
 end
 
---// FIXED DROPDOWN — no clipping, renders above content
+--// DROPDOWN — popup in ScreenGui, never clipped
 function Gui:CreateDropdown(label, options, default, callback, y)
     local DropFrame = Instance.new("Frame")
     DropFrame.Size = UDim2.new(1, 0, 0, 36)
@@ -832,9 +836,10 @@ function Gui:CreateDropdown(label, options, default, callback, y)
 
     local selected = default or options[1]
 
+    --// FIXED: dropdown button clear of scrollbar
     local DropBtn = Instance.new("TextButton")
-    DropBtn.Size = UDim2.fromOffset(160, 28)
-    DropBtn.Position = UDim2.new(1, -164, 0, 4)
+    DropBtn.Size = UDim2.fromOffset(150, 28)
+    DropBtn.Position = UDim2.new(1, -174, 0, 4)
     DropBtn.BackgroundColor3 = DARK_PANEL
     DropBtn.BorderSizePixel = 0
     DropBtn.Text = selected .. " ▼"
@@ -854,10 +859,10 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     DropStroke.Thickness = 1
     DropStroke.Parent = DropBtn
 
-    --// Popup — parented to ScreenGui to avoid clipping
+    --// Popup — parented to ScreenGui, always renders on top
     local Popup = Instance.new("Frame")
     Popup.Name = "DropdownPopup"
-    Popup.Size = UDim2.fromOffset(160, math.min(#options * 26, 260))
+    Popup.Size = UDim2.fromOffset(150, math.min(#options * 26, 260))
     Popup.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
     Popup.BorderSizePixel = 0
     Popup.Visible = false
@@ -928,7 +933,6 @@ function Gui:CreateDropdown(label, options, default, callback, y)
         if Popup.Visible then
             Popup.Visible = false
         else
-            -- Position popup below button
             local absPos = DropBtn.AbsolutePosition
             local absSize = DropBtn.AbsoluteSize
             Popup.Position = UDim2.fromOffset(absPos.X, absPos.Y + absSize.Y + 2)
@@ -936,7 +940,6 @@ function Gui:CreateDropdown(label, options, default, callback, y)
         end
     end)
 
-    -- Close popup when clicking elsewhere
     UserInputService.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 and Popup.Visible then
             local mousePos = UserInputService:GetMouseLocation()
@@ -997,7 +1000,7 @@ end
 
 function Gui:CreateKeybindSetting(y)
     local KeyLabel = Instance.new("TextLabel")
-    KeyLabel.Size = UDim2.new(1, -130, 0, 28)
+    KeyLabel.Size = UDim2.new(1, -140, 0, 28)
     KeyLabel.Position = UDim2.fromOffset(0, y)
     KeyLabel.BackgroundTransparency = 1
     KeyLabel.Text = "GUI Toggle Keybind"
@@ -1009,7 +1012,7 @@ function Gui:CreateKeybindSetting(y)
     KeyLabel.Parent = self.Content
 
     local KeyDescription = Instance.new("TextLabel")
-    KeyDescription.Size = UDim2.new(1, -130, 0, 14)
+    KeyDescription.Size = UDim2.new(1, -140, 0, 14)
     KeyDescription.Position = UDim2.fromOffset(0, y + 22)
     KeyDescription.BackgroundTransparency = 1
     KeyDescription.Text = "Press this key to show or hide the GUI."
@@ -1020,10 +1023,11 @@ function Gui:CreateKeybindSetting(y)
     KeyDescription.ZIndex = 3
     KeyDescription.Parent = self.Content
 
+    --// FIXED: keybind button clear of scrollbar
     local Keybind = Instance.new("TextButton")
     Keybind.Name = "Keybind"
     Keybind.Size = UDim2.fromOffset(100, 30)
-    Keybind.Position = UDim2.new(1, -100, 0, y)
+    Keybind.Position = UDim2.new(1, -140, 0, y)
     Keybind.BackgroundColor3 = DARK_PANEL
     Keybind.BorderSizePixel = 0
     Keybind.Text = ToggleKey.Name
