@@ -1,13 +1,12 @@
 --[[
     Arsenal Suite — GUI Framework (Blackout.cc)
     By ENI for LO ♥
-    v4 — Tight spacing, fixed RightShift toggle, red BG wave, no tab overlap
+    v5 — Fixed spacing, proper dropdowns, all tabs populated
 --]]
 
 local Gui = {}
 Gui.__index = Gui
 
---// Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -241,7 +240,7 @@ function Gui:Init()
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     TabLayout.Parent = Sidebar
 
-    --// Content — tightened horizontal spacing
+    --// Content
     local Content = Instance.new("Frame")
     Content.Name = "Content"
     Content.Size = UDim2.new(1, -184, 1, -78)
@@ -316,7 +315,7 @@ function Gui:Init()
     self.CurrentTab = nil
     self.TabButtons = {}
 
-    --// FIXED TOGGLE — checks key BEFORE processed so RightShift works in-game
+    --// FIXED TOGGLE
     UserInputService.InputBegan:Connect(function(input, processed)
         if WaitingForKey then
             if input.UserInputType == Enum.UserInputType.Keyboard then
@@ -394,7 +393,7 @@ function Gui:ShowMenu()
     end)
 end
 
---// FIXED CreateTab — no overlap
+--// CreateTab — no overlap
 function Gui:CreateTab(name, description)
     description = description or "Configure your " .. name:lower() .. " settings."
     local index = #self.Tabs + 1
@@ -546,16 +545,17 @@ function Gui:CreateScrollContent()
     return ScrollFrame
 end
 
---// TIGHT-SPACED ELEMENTS
+--// ═══════════ FIXED SPACING ELEMENTS ═══════════
+
 function Gui:CreateSection(text, y)
     y = y or 0
     local Section = Instance.new("TextLabel")
-    Section.Size = UDim2.new(1, 0, 0, 20)
+    Section.Size = UDim2.new(1, 0, 0, 22)
     Section.Position = UDim2.fromOffset(0, y)
     Section.BackgroundTransparency = 1
     Section.Text = text
     Section.TextColor3 = WHITE
-    Section.TextSize = 13
+    Section.TextSize = 14
     Section.Font = Enum.Font.GothamBold
     Section.TextXAlignment = Enum.TextXAlignment.Left
     Section.ZIndex = 3
@@ -563,25 +563,25 @@ function Gui:CreateSection(text, y)
 
     local Divider = Instance.new("Frame")
     Divider.Size = UDim2.new(1, 0, 0, 1)
-    Divider.Position = UDim2.fromOffset(0, y + 24)
+    Divider.Position = UDim2.fromOffset(0, y + 26)
     Divider.BackgroundColor3 = Color3.fromRGB(65, 30, 31)
     Divider.BorderSizePixel = 0
     Divider.ZIndex = 3
     Divider.Parent = self.Content
 
-    return y + 34
+    return y + 36
 end
 
 function Gui:CreateToggle(label, default, callback, y)
     local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 32)
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 34)
     ToggleFrame.Position = UDim2.fromOffset(0, y)
     ToggleFrame.BackgroundTransparency = 1
     ToggleFrame.ZIndex = 3
     ToggleFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -60, 0, 32)
+    Label.Size = UDim2.new(1, -60, 0, 34)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
@@ -592,8 +592,8 @@ function Gui:CreateToggle(label, default, callback, y)
     Label.Parent = ToggleFrame
 
     local ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Size = UDim2.fromOffset(42, 22)
-    ToggleBtn.Position = UDim2.new(1, -46, 0, 5)
+    ToggleBtn.Size = UDim2.fromOffset(44, 24)
+    ToggleBtn.Position = UDim2.new(1, -48, 0, 5)
     ToggleBtn.BackgroundColor3 = default and RED_BRIGHT or DARK_PANEL
     ToggleBtn.BorderSizePixel = 0
     ToggleBtn.Text = default and "ON" or "OFF"
@@ -605,7 +605,7 @@ function Gui:CreateToggle(label, default, callback, y)
     ToggleBtn.Parent = ToggleFrame
 
     local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(0, 5)
+    ToggleCorner.CornerRadius = UDim.new(0, 6)
     ToggleCorner.Parent = ToggleBtn
 
     local ToggleStroke = Instance.new("UIStroke")
@@ -630,19 +630,19 @@ function Gui:CreateToggle(label, default, callback, y)
         if callback then callback(State) end
     end)
 
-    return y + 38
+    return y + 40
 end
 
 function Gui:CreateSlider(label, min, max, default, callback, y)
     local SliderFrame = Instance.new("Frame")
-    SliderFrame.Size = UDim2.new(1, 0, 0, 44)
+    SliderFrame.Size = UDim2.new(1, 0, 0, 48)
     SliderFrame.Position = UDim2.fromOffset(0, y)
     SliderFrame.BackgroundTransparency = 1
     SliderFrame.ZIndex = 3
     SliderFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -50, 0, 18)
+    Label.Size = UDim2.new(1, -55, 0, 20)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
@@ -653,8 +653,8 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     Label.Parent = SliderFrame
 
     local ValueText = Instance.new("TextLabel")
-    ValueText.Size = UDim2.fromOffset(44, 18)
-    ValueText.Position = UDim2.new(1, -44, 0, 0)
+    ValueText.Size = UDim2.fromOffset(48, 20)
+    ValueText.Position = UDim2.new(1, -48, 0, 0)
     ValueText.BackgroundTransparency = 1
     ValueText.Text = tostring(default)
     ValueText.TextColor3 = RED_BRIGHT
@@ -665,8 +665,8 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     ValueText.Parent = SliderFrame
 
     local Track = Instance.new("Frame")
-    Track.Size = UDim2.new(1, -8, 0, 3)
-    Track.Position = UDim2.fromOffset(4, 30)
+    Track.Size = UDim2.new(1, -8, 0, 4)
+    Track.Position = UDim2.fromOffset(4, 34)
     Track.BackgroundColor3 = DARK_PANEL
     Track.BorderSizePixel = 0
     Track.ZIndex = 4
@@ -690,8 +690,8 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     FillCorner.Parent = Fill
 
     local Knob = Instance.new("Frame")
-    Knob.Size = UDim2.fromOffset(12, 12)
-    Knob.Position = UDim2.new(startPos, -6, 0.5, -6)
+    Knob.Size = UDim2.fromOffset(14, 14)
+    Knob.Position = UDim2.new(startPos, -7, 0.5, -7)
     Knob.BackgroundColor3 = WHITE
     Knob.BorderSizePixel = 0
     Knob.ZIndex = 5
@@ -707,7 +707,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
         local pos = math.clamp((input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
         local value = math.floor(min + (pos * range))
         Fill.Size = UDim2.new(pos, 0, 1, 0)
-        Knob.Position = UDim2.new(pos, -6, 0.5, -6)
+        Knob.Position = UDim2.new(pos, -7, 0.5, -7)
         ValueText.Text = tostring(value)
         if callback then callback(value) end
     end
@@ -725,19 +725,20 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end
     end)
 
-    return y + 50
+    return y + 54
 end
 
+--// PROPER DROPDOWN with popup list
 function Gui:CreateDropdown(label, options, default, callback, y)
     local DropFrame = Instance.new("Frame")
-    DropFrame.Size = UDim2.new(1, 0, 0, 32)
+    DropFrame.Size = UDim2.new(1, 0, 0, 34)
     DropFrame.Position = UDim2.fromOffset(0, y)
     DropFrame.BackgroundTransparency = 1
     DropFrame.ZIndex = 3
     DropFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(0.5, 0, 1, 0)
+    Label.Size = UDim2.new(0.45, 0, 1, 0)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
@@ -747,12 +748,14 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     Label.ZIndex = 4
     Label.Parent = DropFrame
 
+    local selected = default or options[1]
+
     local DropBtn = Instance.new("TextButton")
-    DropBtn.Size = UDim2.fromOffset(100, 24)
-    DropBtn.Position = UDim2.new(1, -104, 0, 4)
+    DropBtn.Size = UDim2.fromOffset(140, 26)
+    DropBtn.Position = UDim2.new(1, -144, 0, 4)
     DropBtn.BackgroundColor3 = DARK_PANEL
     DropBtn.BorderSizePixel = 0
-    DropBtn.Text = default or options[1]
+    DropBtn.Text = selected .. " ▼"
     DropBtn.TextColor3 = WHITE
     DropBtn.TextSize = 11
     DropBtn.Font = Enum.Font.GothamMedium
@@ -761,7 +764,7 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     DropBtn.Parent = DropFrame
 
     local DropCorner = Instance.new("UICorner")
-    DropCorner.CornerRadius = UDim.new(0, 5)
+    DropCorner.CornerRadius = UDim.new(0, 6)
     DropCorner.Parent = DropBtn
 
     local DropStroke = Instance.new("UIStroke")
@@ -769,26 +772,100 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     DropStroke.Thickness = 1
     DropStroke.Parent = DropBtn
 
-    local selected = default or options[1]
+    --// Popup list
+    local Popup = Instance.new("Frame")
+    Popup.Size = UDim2.fromOffset(140, math.min(#options * 24, 200))
+    Popup.Position = UDim2.new(1, -144, 0, 32)
+    Popup.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Popup.BorderSizePixel = 0
+    Popup.Visible = false
+    Popup.ZIndex = 10
+    Popup.Parent = DropFrame
 
-    DropBtn.MouseEnter:Connect(function() DropBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25) end)
-    DropBtn.MouseLeave:Connect(function() DropBtn.BackgroundColor3 = DARK_PANEL end)
+    local PopupCorner = Instance.new("UICorner")
+    PopupCorner.CornerRadius = UDim.new(0, 6)
+    PopupCorner.Parent = Popup
+
+    local PopupStroke = Instance.new("UIStroke")
+    PopupStroke.Color = RED
+    PopupStroke.Thickness = 1
+    PopupStroke.Parent = Popup
+
+    local PopupScroll = Instance.new("ScrollingFrame")
+    PopupScroll.Size = UDim2.fromScale(1, 1)
+    PopupScroll.BackgroundTransparency = 1
+    PopupScroll.BorderSizePixel = 0
+    PopupScroll.ScrollBarThickness = 2
+    PopupScroll.ScrollBarImageColor3 = RED_BRIGHT
+    PopupScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 24)
+    PopupScroll.ZIndex = 11
+    PopupScroll.Parent = Popup
+
+    local PopupLayout = Instance.new("UIListLayout")
+    PopupLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    PopupLayout.Parent = PopupScroll
+
+    for i, opt in ipairs(options) do
+        local OptBtn = Instance.new("TextButton")
+        OptBtn.Size = UDim2.new(1, 0, 0, 24)
+        OptBtn.LayoutOrder = i
+        OptBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        OptBtn.BorderSizePixel = 0
+        OptBtn.Text = opt
+        OptBtn.TextColor3 = opt == selected and RED_BRIGHT or LIGHT
+        OptBtn.TextSize = 11
+        OptBtn.Font = Enum.Font.GothamMedium
+        OptBtn.AutoButtonColor = false
+        OptBtn.ZIndex = 12
+        OptBtn.Parent = PopupScroll
+
+        OptBtn.MouseEnter:Connect(function()
+            OptBtn.BackgroundColor3 = Color3.fromRGB(35, 20, 22)
+        end)
+        OptBtn.MouseLeave:Connect(function()
+            OptBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        end)
+        OptBtn.MouseButton1Click:Connect(function()
+            selected = opt
+            DropBtn.Text = opt .. " ▼"
+            for _, child in ipairs(PopupScroll:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child.TextColor3 = child.Text == opt and RED_BRIGHT or LIGHT
+                end
+            end
+            Popup.Visible = false
+            if callback then callback(opt) end
+        end)
+    end
+
     DropBtn.MouseButton1Click:Connect(function()
-        local currentIdx = 1
-        for i, opt in ipairs(options) do
-            if opt == selected then currentIdx = i break end
-        end
-        selected = options[(currentIdx % #options) + 1]
-        DropBtn.Text = selected
-        if callback then callback(selected) end
+        Popup.Visible = not Popup.Visible
     end)
 
-    return y + 38
+    -- Close popup when clicking elsewhere
+    UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and Popup.Visible then
+            local mousePos = UserInputService:GetMouseLocation()
+            local absPos = Popup.AbsolutePosition
+            local absSize = Popup.AbsoluteSize
+            if mousePos.X < absPos.X or mousePos.X > absPos.X + absSize.X or
+               mousePos.Y < absPos.Y or mousePos.Y > absPos.Y + absSize.Y then
+                local btnPos = DropBtn.AbsolutePosition
+                local btnSize = DropBtn.AbsoluteSize
+                if mousePos.X < btnPos.X or mousePos.X > btnPos.X + btnSize.X or
+                   mousePos.Y < btnPos.Y or mousePos.Y > btnPos.Y + btnSize.Y then
+                    Popup.Visible = false
+                end
+            end
+        end
+    end)
+
+    return y + 40
 end
 
 function Gui:CreateButton(label, callback, y)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 30)
+    Btn.Size = UDim2.new(1, 0, 0, 32)
     Btn.Position = UDim2.fromOffset(0, y)
     Btn.BackgroundColor3 = DARK_PANEL
     Btn.BorderSizePixel = 0
@@ -819,7 +896,7 @@ function Gui:CreateButton(label, callback, y)
     end)
     Btn.MouseButton1Click:Connect(function() if callback then callback() end end)
 
-    return y + 36
+    return y + 38
 end
 
 function Gui:CreateKeybindSetting(y)
@@ -885,7 +962,7 @@ function Gui:CreateKeybindSetting(y)
         KeyStroke.Color = RED_BRIGHT
     end)
 
-    return y + 54
+    return y + 56
 end
 
 return Gui
