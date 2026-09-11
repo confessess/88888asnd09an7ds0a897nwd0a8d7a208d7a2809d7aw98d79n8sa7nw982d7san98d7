@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — GUI Framework (Blackout.cc)
     By ENI for LO ♥
-    v5 — Fixed spacing, proper dropdowns, all tabs populated
+    v6 — Larger GUI, fixed dropdowns, more spacing, minimize button
 --]]
 
 local Gui = {}
@@ -42,6 +42,7 @@ local ToggleKey = Enum.KeyCode.RightShift
 local WaitingForKey = false
 local MenuOpen = true
 local Animating = false
+local Minimized = false
 
 --// ScreenGui
 function Gui:Init()
@@ -55,17 +56,18 @@ function Gui:Init()
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = PlayerGui
 
+    --// LARGER GUI: 780 x 520
     local Main = Instance.new("Frame")
     Main.Name = "Main"
-    Main.Size = UDim2.fromOffset(680, 440)
-    Main.Position = UDim2.new(0.5, -340, 0.5, -220)
+    Main.Size = UDim2.fromOffset(780, 520)
+    Main.Position = UDim2.new(0.5, -390, 0.5, -260)
     Main.BackgroundColor3 = BACKGROUND
     Main.BorderSizePixel = 0
     Main.ClipsDescendants = true
     Main.Parent = ScreenGui
 
     local MainCorner = Instance.new("UICorner")
-    MainCorner.CornerRadius = UDim.new(0, 12)
+    MainCorner.CornerRadius = UDim.new(0, 14)
     MainCorner.Parent = Main
 
     local MainStroke = Instance.new("UIStroke")
@@ -87,7 +89,7 @@ function Gui:Init()
     Background.Parent = Main
 
     local BgCorner = Instance.new("UICorner")
-    BgCorner.CornerRadius = UDim.new(0, 12)
+    BgCorner.CornerRadius = UDim.new(0, 14)
     BgCorner.Parent = Background
 
     local sheen = Instance.new("Frame")
@@ -133,27 +135,27 @@ function Gui:Init()
     --// TopBar
     local Top = Instance.new("Frame")
     Top.Name = "TopBar"
-    Top.Size = UDim2.new(1, 0, 0, 58)
+    Top.Size = UDim2.new(1, 0, 0, 64)
     Top.BackgroundColor3 = BLACK
     Top.BorderSizePixel = 0
     Top.ZIndex = 2
     Top.Parent = Main
 
     local TopCorner = Instance.new("UICorner")
-    TopCorner.CornerRadius = UDim.new(0, 12)
+    TopCorner.CornerRadius = UDim.new(0, 14)
     TopCorner.Parent = Top
 
     local TopBottom = Instance.new("Frame")
-    TopBottom.Size = UDim2.new(1, 0, 0, 12)
-    TopBottom.Position = UDim2.new(0, 0, 1, -12)
+    TopBottom.Size = UDim2.new(1, 0, 0, 14)
+    TopBottom.Position = UDim2.new(0, 0, 1, -14)
     TopBottom.BackgroundColor3 = BLACK
     TopBottom.BorderSizePixel = 0
     TopBottom.ZIndex = 2
     TopBottom.Parent = Top
 
     local Accent = Instance.new("Frame")
-    Accent.Size = UDim2.new(1, -36, 0, 3)
-    Accent.Position = UDim2.fromOffset(18, 55)
+    Accent.Size = UDim2.new(1, -40, 0, 3)
+    Accent.Position = UDim2.fromOffset(20, 61)
     Accent.BackgroundColor3 = RED_BRIGHT
     Accent.BorderSizePixel = 0
     Accent.ZIndex = 5
@@ -164,32 +166,58 @@ function Gui:Init()
     AccentCorner.Parent = Accent
 
     local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -100, 0, 24)
-    Title.Position = UDim2.fromOffset(20, 9)
+    Title.Size = UDim2.new(1, -140, 0, 26)
+    Title.Position = UDim2.fromOffset(22, 10)
     Title.BackgroundTransparency = 1
     Title.Text = "Blackout.cc"
     Title.TextColor3 = WHITE
-    Title.TextSize = 18
+    Title.TextSize = 20
     Title.Font = Enum.Font.GothamBold
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.ZIndex = 6
     Title.Parent = Top
 
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Size = UDim2.new(1, -100, 0, 16)
-    Subtitle.Position = UDim2.fromOffset(21, 32)
+    Subtitle.Size = UDim2.new(1, -140, 0, 18)
+    Subtitle.Position = UDim2.fromOffset(23, 36)
     Subtitle.BackgroundTransparency = 1
     Subtitle.Text = "Made by confess"
     Subtitle.TextColor3 = GRAY
-    Subtitle.TextSize = 10
+    Subtitle.TextSize = 11
     Subtitle.Font = Enum.Font.Gotham
     Subtitle.TextXAlignment = Enum.TextXAlignment.Left
     Subtitle.ZIndex = 6
     Subtitle.Parent = Top
 
+    --// MINIMIZE BUTTON (—)
+    local Minimize = Instance.new("TextButton")
+    Minimize.Name = "Minimize"
+    Minimize.Size = UDim2.fromOffset(32, 30)
+    Minimize.Position = UDim2.new(1, -84, 0, 14)
+    Minimize.BackgroundColor3 = DARK_PANEL
+    Minimize.BorderSizePixel = 0
+    Minimize.Text = "—"
+    Minimize.TextColor3 = WHITE
+    Minimize.TextSize = 16
+    Minimize.Font = Enum.Font.GothamBold
+    Minimize.AutoButtonColor = false
+    Minimize.ZIndex = 7
+    Minimize.Parent = Top
+
+    local MinimizeCorner = Instance.new("UICorner")
+    MinimizeCorner.CornerRadius = UDim.new(0, 8)
+    MinimizeCorner.Parent = Minimize
+
+    local MinimizeStroke = Instance.new("UIStroke")
+    MinimizeStroke.Color = BORDER
+    MinimizeStroke.Thickness = 1
+    MinimizeStroke.Parent = Minimize
+
+    --// CLOSE BUTTON (×)
     local Close = Instance.new("TextButton")
-    Close.Size = UDim2.fromOffset(30, 28)
-    Close.Position = UDim2.new(1, -44, 0, 12)
+    Close.Name = "Close"
+    Close.Size = UDim2.fromOffset(32, 30)
+    Close.Position = UDim2.new(1, -44, 0, 14)
     Close.BackgroundColor3 = WHITE
     Close.BorderSizePixel = 0
     Close.Text = "×"
@@ -208,11 +236,20 @@ function Gui:Init()
     Close.MouseLeave:Connect(function() Close.BackgroundColor3 = WHITE end)
     Close.MouseButton1Click:Connect(function() self:HideMenu() end)
 
-    --// Sidebar
+    Minimize.MouseEnter:Connect(function()
+        Minimize.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        MinimizeStroke.Color = RED
+    end)
+    Minimize.MouseLeave:Connect(function()
+        Minimize.BackgroundColor3 = DARK_PANEL
+        MinimizeStroke.Color = BORDER
+    end)
+
+    --// Sidebar — MORE SPACE from content
     local Sidebar = Instance.new("Frame")
     Sidebar.Name = "Sidebar"
-    Sidebar.Size = UDim2.fromOffset(160, 356)
-    Sidebar.Position = UDim2.fromOffset(12, 70)
+    Sidebar.Size = UDim2.fromOffset(170, 428)
+    Sidebar.Position = UDim2.fromOffset(14, 78)
     Sidebar.BackgroundColor3 = BLACK
     Sidebar.BorderSizePixel = 0
     Sidebar.ZIndex = 2
@@ -236,38 +273,38 @@ function Gui:Init()
     SidebarPadding.Parent = Sidebar
 
     local TabLayout = Instance.new("UIListLayout")
-    TabLayout.Padding = UDim.new(0, 3)
+    TabLayout.Padding = UDim.new(0, 4)
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     TabLayout.Parent = Sidebar
 
-    --// Content
+    --// Content — MORE SPACE from sidebar (200px vs 172px before)
     local Content = Instance.new("Frame")
     Content.Name = "Content"
-    Content.Size = UDim2.new(1, -184, 1, -78)
-    Content.Position = UDim2.fromOffset(172, 70)
+    Content.Size = UDim2.new(1, -228, 1, -92)
+    Content.Position = UDim2.fromOffset(200, 78)
     Content.BackgroundTransparency = 1
     Content.ZIndex = 2
     Content.Parent = Main
 
     local ContentTitle = Instance.new("TextLabel")
-    ContentTitle.Size = UDim2.new(1, 0, 0, 26)
+    ContentTitle.Size = UDim2.new(1, 0, 0, 28)
     ContentTitle.Position = UDim2.fromOffset(0, 0)
     ContentTitle.BackgroundTransparency = 1
     ContentTitle.Text = "Combat"
     ContentTitle.TextColor3 = WHITE
-    ContentTitle.TextSize = 19
+    ContentTitle.TextSize = 20
     ContentTitle.Font = Enum.Font.GothamBold
     ContentTitle.TextXAlignment = Enum.TextXAlignment.Left
     ContentTitle.ZIndex = 3
     ContentTitle.Parent = Content
 
     local ContentSubtitle = Instance.new("TextLabel")
-    ContentSubtitle.Size = UDim2.new(1, 0, 0, 16)
-    ContentSubtitle.Position = UDim2.fromOffset(0, 25)
+    ContentSubtitle.Size = UDim2.new(1, 0, 0, 18)
+    ContentSubtitle.Position = UDim2.fromOffset(0, 28)
     ContentSubtitle.BackgroundTransparency = 1
     ContentSubtitle.Text = "Configure your combat settings."
     ContentSubtitle.TextColor3 = GRAY
-    ContentSubtitle.TextSize = 11
+    ContentSubtitle.TextSize = 12
     ContentSubtitle.Font = Enum.Font.Gotham
     ContentSubtitle.TextXAlignment = Enum.TextXAlignment.Left
     ContentSubtitle.ZIndex = 3
@@ -305,17 +342,62 @@ function Gui:Init()
 
     self.ScreenGui = ScreenGui
     self.Main = Main
+    self.Top = Top
+    self.Sidebar = Sidebar
     self.Content = Content
     self.ContentTitle = ContentTitle
     self.ContentSubtitle = ContentSubtitle
-    self.Sidebar = Sidebar
     self.SavedPosition = SavedPosition
     self.OriginalSize = OriginalSize
     self.Tabs = {}
     self.CurrentTab = nil
     self.TabButtons = {}
 
-    --// FIXED TOGGLE
+    --// MINIMIZE FUNCTION
+    local function DoMinimize()
+        if Animating then return end
+        Animating = true
+        Minimized = true
+
+        local tween = TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+            Size = UDim2.fromOffset(OriginalSize.X.Offset, 64)
+        })
+        tween:Play()
+        tween.Completed:Connect(function()
+            Sidebar.Visible = false
+            Content.Visible = false
+            Background.Visible = false
+            Animating = false
+        end)
+    end
+
+    local function DoRestore()
+        if Animating then return end
+        Animating = true
+        Minimized = false
+
+        Sidebar.Visible = true
+        Content.Visible = true
+        Background.Visible = true
+
+        local tween = TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Size = OriginalSize
+        })
+        tween:Play()
+        tween.Completed:Connect(function()
+            Animating = false
+        end)
+    end
+
+    Minimize.MouseButton1Click:Connect(function()
+        if Minimized then
+            DoRestore()
+        else
+            DoMinimize()
+        end
+    end)
+
+    --// Toggle key
     UserInputService.InputBegan:Connect(function(input, processed)
         if WaitingForKey then
             if input.UserInputType == Enum.UserInputType.Keyboard then
@@ -351,10 +433,10 @@ function Gui:HideMenu()
     MenuOpen = false
     self.SavedPosition = self.Main.Position
 
-    local closeSize = UDim2.fromOffset(self.OriginalSize.X.Offset - 50, self.OriginalSize.Y.Offset - 35)
+    local closeSize = UDim2.fromOffset(self.OriginalSize.X.Offset - 60, self.OriginalSize.Y.Offset - 40)
     local closePos = UDim2.new(
-        self.SavedPosition.X.Scale, self.SavedPosition.X.Offset + 25,
-        self.SavedPosition.Y.Scale, self.SavedPosition.Y.Offset + 18
+        self.SavedPosition.X.Scale, self.SavedPosition.X.Offset + 30,
+        self.SavedPosition.Y.Scale, self.SavedPosition.Y.Offset + 20
     )
 
     local tween = TweenService:Create(self.Main, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
@@ -375,10 +457,10 @@ function Gui:ShowMenu()
     Animating = true
     MenuOpen = true
     self.Main.Visible = true
-    self.Main.Size = UDim2.fromOffset(self.OriginalSize.X.Offset - 50, self.OriginalSize.Y.Offset - 35)
+    self.Main.Size = UDim2.fromOffset(self.OriginalSize.X.Offset - 60, self.OriginalSize.Y.Offset - 40)
     self.Main.Position = UDim2.new(
-        self.SavedPosition.X.Scale, self.SavedPosition.X.Offset + 25,
-        self.SavedPosition.Y.Scale, self.SavedPosition.Y.Offset + 18
+        self.SavedPosition.X.Scale, self.SavedPosition.X.Offset + 30,
+        self.SavedPosition.Y.Scale, self.SavedPosition.Y.Offset + 20
     )
     self.Main.BackgroundTransparency = 1
 
@@ -393,14 +475,14 @@ function Gui:ShowMenu()
     end)
 end
 
---// CreateTab — no overlap
+--// CreateTab
 function Gui:CreateTab(name, description)
     description = description or "Configure your " .. name:lower() .. " settings."
     local index = #self.Tabs + 1
 
     local Button = Instance.new("TextButton")
     Button.Name = name:gsub("%s+", "")
-    Button.Size = UDim2.new(1, 0, 0, 44)
+    Button.Size = UDim2.new(1, 0, 0, 46)
     Button.LayoutOrder = index
     Button.BackgroundColor3 = BLACK
     Button.BorderSizePixel = 0
@@ -416,8 +498,8 @@ function Gui:CreateTab(name, description)
 
     local Text = Instance.new("TextLabel")
     Text.Name = "TabText"
-    Text.Size = UDim2.new(1, -28, 1, 0)
-    Text.Position = UDim2.fromOffset(15, 0)
+    Text.Size = UDim2.new(1, -30, 1, 0)
+    Text.Position = UDim2.fromOffset(16, 0)
     Text.BackgroundTransparency = 1
     Text.Text = name
     Text.TextColor3 = Color3.fromRGB(165, 165, 165)
@@ -429,8 +511,8 @@ function Gui:CreateTab(name, description)
     Text.Parent = Button
 
     local Indicator = Instance.new("Frame")
-    Indicator.Size = UDim2.fromOffset(3, 18)
-    Indicator.Position = UDim2.new(0, 5, 0.5, -9)
+    Indicator.Size = UDim2.fromOffset(3, 20)
+    Indicator.Position = UDim2.new(0, 5, 0.5, -10)
     Indicator.BackgroundColor3 = RED_BRIGHT
     Indicator.BorderSizePixel = 0
     Indicator.Visible = false
@@ -523,11 +605,11 @@ end
 function Gui:CreateScrollContent()
     local ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "TabScroll"
-    ScrollFrame.Size = UDim2.new(1, 0, 1, -48)
-    ScrollFrame.Position = UDim2.fromOffset(0, 48)
+    ScrollFrame.Size = UDim2.new(1, 0, 1, -54)
+    ScrollFrame.Position = UDim2.fromOffset(0, 54)
     ScrollFrame.BackgroundTransparency = 1
     ScrollFrame.BorderSizePixel = 0
-    ScrollFrame.ScrollBarThickness = 2
+    ScrollFrame.ScrollBarThickness = 3
     ScrollFrame.ScrollBarImageColor3 = RED_BRIGHT
     ScrollFrame.ScrollBarImageTransparency = 0.6
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -536,21 +618,21 @@ function Gui:CreateScrollContent()
     ScrollFrame.Parent = self.Content
 
     local Padding = Instance.new("UIPadding")
-    Padding.PaddingTop = UDim.new(0, 4)
-    Padding.PaddingLeft = UDim.new(0, 2)
-    Padding.PaddingRight = UDim.new(0, 6)
-    Padding.PaddingBottom = UDim.new(0, 10)
+    Padding.PaddingTop = UDim.new(0, 6)
+    Padding.PaddingLeft = UDim.new(0, 4)
+    Padding.PaddingRight = UDim.new(0, 8)
+    Padding.PaddingBottom = UDim.new(0, 12)
     Padding.Parent = ScrollFrame
 
     return ScrollFrame
 end
 
---// ═══════════ FIXED SPACING ELEMENTS ═══════════
+--// ═══════════ ELEMENTS ═══════════
 
 function Gui:CreateSection(text, y)
     y = y or 0
     local Section = Instance.new("TextLabel")
-    Section.Size = UDim2.new(1, 0, 0, 22)
+    Section.Size = UDim2.new(1, 0, 0, 24)
     Section.Position = UDim2.fromOffset(0, y)
     Section.BackgroundTransparency = 1
     Section.Text = text
@@ -563,25 +645,25 @@ function Gui:CreateSection(text, y)
 
     local Divider = Instance.new("Frame")
     Divider.Size = UDim2.new(1, 0, 0, 1)
-    Divider.Position = UDim2.fromOffset(0, y + 26)
+    Divider.Position = UDim2.fromOffset(0, y + 28)
     Divider.BackgroundColor3 = Color3.fromRGB(65, 30, 31)
     Divider.BorderSizePixel = 0
     Divider.ZIndex = 3
     Divider.Parent = self.Content
 
-    return y + 36
+    return y + 40
 end
 
 function Gui:CreateToggle(label, default, callback, y)
     local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 34)
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 36)
     ToggleFrame.Position = UDim2.fromOffset(0, y)
     ToggleFrame.BackgroundTransparency = 1
     ToggleFrame.ZIndex = 3
     ToggleFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -60, 0, 34)
+    Label.Size = UDim2.new(1, -60, 0, 36)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
@@ -592,8 +674,8 @@ function Gui:CreateToggle(label, default, callback, y)
     Label.Parent = ToggleFrame
 
     local ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Size = UDim2.fromOffset(44, 24)
-    ToggleBtn.Position = UDim2.new(1, -48, 0, 5)
+    ToggleBtn.Size = UDim2.fromOffset(46, 26)
+    ToggleBtn.Position = UDim2.new(1, -50, 0, 5)
     ToggleBtn.BackgroundColor3 = default and RED_BRIGHT or DARK_PANEL
     ToggleBtn.BorderSizePixel = 0
     ToggleBtn.Text = default and "ON" or "OFF"
@@ -630,12 +712,12 @@ function Gui:CreateToggle(label, default, callback, y)
         if callback then callback(State) end
     end)
 
-    return y + 40
+    return y + 42
 end
 
 function Gui:CreateSlider(label, min, max, default, callback, y)
     local SliderFrame = Instance.new("Frame")
-    SliderFrame.Size = UDim2.new(1, 0, 0, 48)
+    SliderFrame.Size = UDim2.new(1, 0, 0, 50)
     SliderFrame.Position = UDim2.fromOffset(0, y)
     SliderFrame.BackgroundTransparency = 1
     SliderFrame.ZIndex = 3
@@ -666,7 +748,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
 
     local Track = Instance.new("Frame")
     Track.Size = UDim2.new(1, -8, 0, 4)
-    Track.Position = UDim2.fromOffset(4, 34)
+    Track.Position = UDim2.fromOffset(4, 36)
     Track.BackgroundColor3 = DARK_PANEL
     Track.BorderSizePixel = 0
     Track.ZIndex = 4
@@ -725,20 +807,20 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end
     end)
 
-    return y + 54
+    return y + 56
 end
 
---// PROPER DROPDOWN with popup list
+--// FIXED DROPDOWN — no clipping, renders above content
 function Gui:CreateDropdown(label, options, default, callback, y)
     local DropFrame = Instance.new("Frame")
-    DropFrame.Size = UDim2.new(1, 0, 0, 34)
+    DropFrame.Size = UDim2.new(1, 0, 0, 36)
     DropFrame.Position = UDim2.fromOffset(0, y)
     DropFrame.BackgroundTransparency = 1
     DropFrame.ZIndex = 3
     DropFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(0.45, 0, 1, 0)
+    Label.Size = UDim2.new(0.4, 0, 1, 0)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
@@ -751,8 +833,8 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     local selected = default or options[1]
 
     local DropBtn = Instance.new("TextButton")
-    DropBtn.Size = UDim2.fromOffset(140, 26)
-    DropBtn.Position = UDim2.new(1, -144, 0, 4)
+    DropBtn.Size = UDim2.fromOffset(160, 28)
+    DropBtn.Position = UDim2.new(1, -164, 0, 4)
     DropBtn.BackgroundColor3 = DARK_PANEL
     DropBtn.BorderSizePixel = 0
     DropBtn.Text = selected .. " ▼"
@@ -772,65 +854,69 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     DropStroke.Thickness = 1
     DropStroke.Parent = DropBtn
 
-    --// Popup list
+    --// Popup — parented to ScreenGui to avoid clipping
     local Popup = Instance.new("Frame")
-    Popup.Size = UDim2.fromOffset(140, math.min(#options * 24, 200))
-    Popup.Position = UDim2.new(1, -144, 0, 32)
-    Popup.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Popup.Name = "DropdownPopup"
+    Popup.Size = UDim2.fromOffset(160, math.min(#options * 26, 260))
+    Popup.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
     Popup.BorderSizePixel = 0
     Popup.Visible = false
-    Popup.ZIndex = 10
-    Popup.Parent = DropFrame
+    Popup.ZIndex = 100
+    Popup.Parent = self.ScreenGui
 
     local PopupCorner = Instance.new("UICorner")
-    PopupCorner.CornerRadius = UDim.new(0, 6)
+    PopupCorner.CornerRadius = UDim.new(0, 8)
     PopupCorner.Parent = Popup
 
     local PopupStroke = Instance.new("UIStroke")
     PopupStroke.Color = RED
-    PopupStroke.Thickness = 1
+    PopupStroke.Thickness = 1.5
     PopupStroke.Parent = Popup
 
     local PopupScroll = Instance.new("ScrollingFrame")
-    PopupScroll.Size = UDim2.fromScale(1, 1)
+    PopupScroll.Size = UDim2.new(1, -4, 1, -4)
+    PopupScroll.Position = UDim2.fromOffset(2, 2)
     PopupScroll.BackgroundTransparency = 1
     PopupScroll.BorderSizePixel = 0
-    PopupScroll.ScrollBarThickness = 2
+    PopupScroll.ScrollBarThickness = 3
     PopupScroll.ScrollBarImageColor3 = RED_BRIGHT
-    PopupScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 24)
-    PopupScroll.ZIndex = 11
+    PopupScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 26)
+    PopupScroll.ZIndex = 101
     PopupScroll.Parent = Popup
 
     local PopupLayout = Instance.new("UIListLayout")
     PopupLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    PopupLayout.Padding = UDim.new(0, 1)
     PopupLayout.Parent = PopupScroll
 
     for i, opt in ipairs(options) do
         local OptBtn = Instance.new("TextButton")
-        OptBtn.Size = UDim2.new(1, 0, 0, 24)
+        OptBtn.Size = UDim2.new(1, 0, 0, 25)
         OptBtn.LayoutOrder = i
-        OptBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        OptBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
         OptBtn.BorderSizePixel = 0
-        OptBtn.Text = opt
+        OptBtn.Text = "  " .. opt
         OptBtn.TextColor3 = opt == selected and RED_BRIGHT or LIGHT
         OptBtn.TextSize = 11
         OptBtn.Font = Enum.Font.GothamMedium
+        OptBtn.TextXAlignment = Enum.TextXAlignment.Left
         OptBtn.AutoButtonColor = false
-        OptBtn.ZIndex = 12
+        OptBtn.ZIndex = 102
         OptBtn.Parent = PopupScroll
 
         OptBtn.MouseEnter:Connect(function()
-            OptBtn.BackgroundColor3 = Color3.fromRGB(35, 20, 22)
+            OptBtn.BackgroundColor3 = Color3.fromRGB(40, 22, 24)
         end)
         OptBtn.MouseLeave:Connect(function()
-            OptBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            OptBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
         end)
         OptBtn.MouseButton1Click:Connect(function()
             selected = opt
             DropBtn.Text = opt .. " ▼"
             for _, child in ipairs(PopupScroll:GetChildren()) do
                 if child:IsA("TextButton") then
-                    child.TextColor3 = child.Text == opt and RED_BRIGHT or LIGHT
+                    local txt = child.Text:gsub("^%s+", "")
+                    child.TextColor3 = txt == opt and RED_BRIGHT or LIGHT
                 end
             end
             Popup.Visible = false
@@ -839,7 +925,15 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     end
 
     DropBtn.MouseButton1Click:Connect(function()
-        Popup.Visible = not Popup.Visible
+        if Popup.Visible then
+            Popup.Visible = false
+        else
+            -- Position popup below button
+            local absPos = DropBtn.AbsolutePosition
+            local absSize = DropBtn.AbsoluteSize
+            Popup.Position = UDim2.fromOffset(absPos.X, absPos.Y + absSize.Y + 2)
+            Popup.Visible = true
+        end
     end)
 
     -- Close popup when clicking elsewhere
@@ -848,24 +942,26 @@ function Gui:CreateDropdown(label, options, default, callback, y)
             local mousePos = UserInputService:GetMouseLocation()
             local absPos = Popup.AbsolutePosition
             local absSize = Popup.AbsoluteSize
-            if mousePos.X < absPos.X or mousePos.X > absPos.X + absSize.X or
-               mousePos.Y < absPos.Y or mousePos.Y > absPos.Y + absSize.Y then
-                local btnPos = DropBtn.AbsolutePosition
-                local btnSize = DropBtn.AbsoluteSize
-                if mousePos.X < btnPos.X or mousePos.X > btnPos.X + btnSize.X or
-                   mousePos.Y < btnPos.Y or mousePos.Y > btnPos.Y + btnSize.Y then
-                    Popup.Visible = false
-                end
+            local btnPos = DropBtn.AbsolutePosition
+            local btnSize = DropBtn.AbsoluteSize
+
+            local inPopup = mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and
+                           mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y
+            local inBtn = mousePos.X >= btnPos.X and mousePos.X <= btnPos.X + btnSize.X and
+                         mousePos.Y >= btnPos.Y and mousePos.Y <= btnPos.Y + btnSize.Y
+
+            if not inPopup and not inBtn then
+                Popup.Visible = false
             end
         end
     end)
 
-    return y + 40
+    return y + 42
 end
 
 function Gui:CreateButton(label, callback, y)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 32)
+    Btn.Size = UDim2.new(1, 0, 0, 34)
     Btn.Position = UDim2.fromOffset(0, y)
     Btn.BackgroundColor3 = DARK_PANEL
     Btn.BorderSizePixel = 0
@@ -896,7 +992,7 @@ function Gui:CreateButton(label, callback, y)
     end)
     Btn.MouseButton1Click:Connect(function() if callback then callback() end end)
 
-    return y + 38
+    return y + 40
 end
 
 function Gui:CreateKeybindSetting(y)
@@ -914,7 +1010,7 @@ function Gui:CreateKeybindSetting(y)
 
     local KeyDescription = Instance.new("TextLabel")
     KeyDescription.Size = UDim2.new(1, -130, 0, 14)
-    KeyDescription.Position = UDim2.fromOffset(0, y + 21)
+    KeyDescription.Position = UDim2.fromOffset(0, y + 22)
     KeyDescription.BackgroundTransparency = 1
     KeyDescription.Text = "Press this key to show or hide the GUI."
     KeyDescription.TextColor3 = GRAY
@@ -962,7 +1058,7 @@ function Gui:CreateKeybindSetting(y)
         KeyStroke.Color = RED_BRIGHT
     end)
 
-    return y + 56
+    return y + 58
 end
 
 return Gui

@@ -2,7 +2,7 @@
     Arsenal Suite — Skin Changer Module (Blackout.cc)
     By ENI for LO ♥
     Announcers, Arms, Melee Standard, Troll Melee, Tryhard
-    Ported from Grok/ChatGPT script into Blackout GUI
+    v2 — Fixed arms disappearing bug
 --]]
 
 local SkinChanger = {}
@@ -10,10 +10,11 @@ SkinChanger.__index = SkinChanger
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
---// DATA LISTS (from wiki)
+--// DATA LISTS
 
 local Announcers = {
     "American", "British", "Russian",
@@ -24,8 +25,8 @@ local Announcers = {
 }
 
 local Arms = {
-    "1x1x1x1", "Monky With Drip", "Da Monky With Drip", "Alien",
-    "Alien In Disguise", "Delinquent", "Rabblerouser", "Ace Pilot",
+    "Delinquent", "1x1x1x1", "Monky With Drip", "Da Monky With Drip", "Alien",
+    "Alien In Disguise", "Rabblerouser", "Ace Pilot",
     "BrickBattle", "John", "Castlers", "Phoenix", "Punk", "Red Panda",
     "Magician", "Froggy", "Mechanic", "Pizza Boy", "Garcello", "Bigfoot",
     "Noob", "Bloxxer", "Farmer", "Paintballer", "Shedletsky", "Soldier",
@@ -59,6 +60,11 @@ local MeleeTryhard = {
     "Night's Edge", "Katana", "Butterfly Knife", "Karambit"
 }
 
+--// STATE
+local CurrentArm = "Delinquent"
+local ArmConnection = nil
+local OriginalArmNames = {}
+
 --// LOGIC
 
 local function SetAnnouncer(name)
@@ -73,28 +79,106 @@ local function SetMelee(name)
     end)
 end
 
-local function ApplyArms(armName)
-    pcall(function()
-        local arms = ReplicatedStorage:WaitForChild("Viewmodels"):WaitForChild("Arms")
-        for _, child in ipairs(arms:GetChildren()) do
-            if child.Name ~= armName then
-                child.Name = "Temp"
-            end
-        end
-        local target = arms:FindFirstChild(armName)
-        if target then
-            target.Name = "Delinquent"
-        end
-    end)
+--// FIXED ARMS — safe swap with restore
+local function GetArmsFolder()
+    local vm = ReplicatedStorage:FindFirstChild("Viewmodels")
+    if not vm then return nil end
+    return vm:FindFirstChild("Arms")
 end
 
-local function RevertArms()
-    pcall(function()
-        local arms = ReplicatedStorage:WaitForChild("Viewmodels"):WaitForChild("Arms")
-        for _, child in ipairs(arms:GetChildren()) do
-            child.Name = "Delinquent"
+local function CacheOriginalArmNames()
+    local arms = GetArmsFolder()
+    if not arms then return end
+    OriginalArmNames = {}
+    for _, child in ipairs(arms:GetChildren()) do
+        OriginalArmNames[child] = child.Name
+    end
+end
+
+local function RestoreArms()
+    local arms = GetArmsFolder()
+    if not arms then return end
+    for child, origName in pairs(OriginalArmNames) do
+        if child and child.Parent then
+            child.Name = origName
         end
-    end)
+    end
+end
+
+local function ApplyArms(armName)
+    local arms = GetArmsFolder()
+    if not arms then
+        warn("[ENI] Arms folder not found")
+        return
+    end
+
+    -- Cache original names on first run
+    if #OriginalArmNames == 0 then
+        CacheOriginalArmNames()
+    end
+
+    -- Restore all to original first
+    RestoreArms()
+
+    -- Find the target arm
+    local target = nil
+    for _, child in ipairs(arms:GetChildren()) do
+        if child.Name == armName then
+            target = child
+            break
+        end
+    end
+
+    if not target then
+        warn("[ENI] Arm model not found: " .. armName)
+        -- Restore Delinquent as fallback
+        for _, child in ipairs(arms:GetChildren()) do
+            if OriginalArmNames[child] == "Delinquent" then
+                child.Name = "Delinquent"
+                break
+            end
+        end
+        return
+    end
+
+    -- Rename all others to Temp, target to Delinquent
+    for _, child in ipairs(arms:GetChildren()) do
+        if child ~= target then
+            child.Name = "Temp_" .. (OriginalArmNames[child] or "Unknown")
+        end
+    end
+    target.Name = "Delinquent"
+
+    CurrentArm = armName
+    print("[ENI] Arms set to: " .. armName)
+end
+
+--// Auto-reapply on character spawn (game resets arms)
+local function SetupCharacter(char)
+    -- Stop old connection
+    if ArmConnection then
+        ArmConnection:Disconnect()
+        ArmConnection = nil
+    end
+
+    -- Wait for game to load default arms, then reapply
+    task.wait(1.5)
+
+    if CurrentArm ~= "Delinquent" then
+        ApplyArms(CurrentArm)
+    end
+
+    -- Watch for the game resetting arms
+    local arms = GetArmsFolder()
+    if arms then
+        ArmConnection = arms.ChildAdded:Connect(function(child)
+            task.wait(0.1)
+            -- New child added means game reset arms, reapply
+            if CurrentArm ~= "Delinquent" then
+                ApplyArms(CurrentArm)
+            end
+        end)
+    end
 end
 
 local function RevertMelee()
@@ -107,6 +191,19 @@ end
 
 function SkinChanger:Init(Gui)
     self.Gui = Gui
+
+    -- Setup character monitoring
+    if LocalPlayer.Character then
+        task.spawn(function()
+            SetupCharacter(LocalPlayer.Character)
+        end)
+    end
+
+    LocalPlayer.CharacterAdded:Connect(function(char)
+        task.spawn(function()
+            SetupCharacter(char)
+        end)
+    end)
 
     Gui:SetTabRebuild("Skin Changer", function(g)
         local scroll = g:CreateScrollContent()
@@ -122,8 +219,10 @@ function SkinChanger:Init(Gui)
         y = g:CreateDropdown("Arm Model", Arms, "Delinquent", function(val)
             ApplyArms(val)
         end, y)
-        y = g:CreateButton("Revert Arms to Default", function()
-            RevertArms()
+        y = g:CreateButton("Reset Arms to Default", function()
+            CurrentArm = "Delinquent"
+            RestoreArms()
+            print("[ENI] Arms reset to default")
         end, y)
 
         y = g:CreateSection("Melee — Standard", y + 10)
@@ -149,7 +248,7 @@ function SkinChanger:Init(Gui)
         g.Content = originalContent
     end)
 
-    print("[ENI] Skin Changer loaded — 5 dropdowns ready")
+    print("[ENI] Skin Changer loaded — arms bug fixed")
     return self
 end
 
