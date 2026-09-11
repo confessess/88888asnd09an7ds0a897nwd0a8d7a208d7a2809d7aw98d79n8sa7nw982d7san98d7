@@ -3,14 +3,6 @@
     By ENI for LO ♥
 --]]
 
---// SECURITY: Verify loader chain
-local chain = getgenv().__BLACKOUT_CHAIN
-if not chain or chain.stage ~= 2 or chain.token ~= "b1a9c3e7f2d4a6e8" then
-    warn("[Blackout] Access denied — invalid loader chain")
-    return
-end
-getgenv().__BLACKOUT_CHAIN = nil
-
 local BASE = "https://raw.githubusercontent.com/confessess/88888asnd09an7ds0a897nwd0a8d7a208d7a2809d7aw98d79n8sa7nw982d7san98d7/main/"
 
 local GuiModule = loadstring(game:HttpGet(BASE .. "gui.lua"))()
@@ -23,7 +15,7 @@ local SkinChangerModule = loadstring(game:HttpGet(BASE .. "skinchanger.lua"))()
 
 local Gui = GuiModule:Init()
 
-Gui:CreateTab("Combat", "Aimbot, silent aim, and hitbox settings.")
+Gui:CreateTab("Combat", "Aimbot, silent aim, hitbox, kill all, configs.")
 Gui:CreateTab("Visuals", "ESP and world rendering.")
 Gui:CreateTab("Gun Mods", "No recoil, no spread, rapid fire, infinite ammo, rainbow guns.")
 Gui:CreateTab("Movement", "Speed, jump, and fly settings.")
