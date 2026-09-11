@@ -19,6 +19,7 @@ GunMods.Config = {
     NoSpread = false,
     RapidFire = false,
     InfiniteAmmo = false,
+    FastReload = false,
     FireRate = 0.03,
     RainbowGuns = false,
     GunTransparency = 0.3,
@@ -152,6 +153,48 @@ local function SetupCharacter(char)
     char.ChildRemoved:Connect(function(child)
         if child:IsA("Tool") and child == CurrentTool then OnToolUnequipped() end
     end)
+end
+
+
+--// FAST RELOAD — from Lunar X
+local function ApplyFastReload()
+    local weapons = ReplicatedStorage:FindFirstChild("Weapons")
+    if not weapons then return end
+
+    for _, w in ipairs(weapons:GetChildren()) do
+        if w:FindFirstChild("FireRate") then
+            if GunMods.Config.FastReload then
+                -- Set reload time to near-zero
+                local reload = w:FindFirstChild("ReloadTime") or w:FindFirstChild("Reload")
+                if reload and reload:IsA("NumberValue") then
+                    if not reload:GetAttribute("OriginalValue") then
+                        reload:SetAttribute("OriginalValue", reload.Value)
+                    end
+                    reload.Value = 0.01
+                end
+                -- Also try TacticalReload
+                local tactical = w:FindFirstChild("TacticalReload")
+                if tactical and tactical:IsA("NumberValue") then
+                    if not tactical:GetAttribute("OriginalValue") then
+                        tactical:SetAttribute("OriginalValue", tactical.Value)
+                    end
+                    tactical.Value = 0.01
+                end
+            else
+                -- Restore original
+                local reload = w:FindFirstChild("ReloadTime") or w:FindFirstChild("Reload")
+                if reload and reload:IsA("NumberValue") then
+                    local orig = reload:GetAttribute("OriginalValue")
+                    if orig then reload.Value = orig end
+                end
+                local tactical = w:FindFirstChild("TacticalReload")
+                if tactical and tactical:IsA("NumberValue") then
+                    local orig = tactical:GetAttribute("OriginalValue")
+                    if orig then tactical.Value = orig end
+                end
+            end
+        end
+    end
 end
 
 --// RAINBOW GUNS — FIXED: uses Heartbeat, better part detection
@@ -297,6 +340,11 @@ function GunMods:Init(Gui)
             ApplyInfiniteAmmo()
         end, y)
 
+        y = g:CreateToggle("Fast Reload", GunMods.Config.FastReload, function(state)
+            GunMods.Config.FastReload = state
+            ApplyFastReload()
+        end, y)
+
         y = g:CreateSlider("Fire Rate", 1, 200, math.floor(GunMods.Config.FireRate * 1000), function(val)
             GunMods.Config.FireRate = val / 1000
             if GunMods.Config.RapidFire then
@@ -332,6 +380,9 @@ function GunMods:Init(Gui)
         end
         if GunMods.Config.InfiniteAmmo then
             ApplyInfiniteAmmo()
+        end
+        if GunMods.Config.FastReload then
+            ApplyFastReload()
         end
         -- Restart rainbow if it was on
         if GunMods.Config.RainbowGuns then

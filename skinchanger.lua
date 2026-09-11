@@ -1,8 +1,7 @@
 --[[
     Arsenal Suite — Skin Changer Module (Blackout.cc)
     By ENI for LO ♥
-    Announcers, Arms, Melee Standard, Troll Melee, Tryhard
-    v3 — Exact original arms logic
+    Ported from Lunar X — melee, skins, announcers, cards, crates with search + previews
 --]]
 
 local SkinChanger = {}
@@ -10,102 +9,371 @@ SkinChanger.__index = SkinChanger
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 
---// DATA LISTS
-
-local Announcers = {
-    "American", "British", "Russian",
-    "Homeless", "Warcrimes", "YouTuber", "Movie Man", "Santa",
-    "Murderous Child", "Hackula", "Jolly Narrator", "Carnival Carnie",
-    "John", "Eprika", "Flamingo", "Petrify", "Bandites", "xonae", "Enforcer",
-    "Koneko", "Weesnaw"
+--// DATA — from Lunar X
+local MeleeData = {
+    ["Dagger"] = "rbxassetid://3084445116",
+    ["Butterfly Knife"] = "rbxassetid://3084444147",
+    ["Karambit"] = "rbxassetid://3084445280",
+    ["Tomahawk"] = "rbxassetid://3084446088",
+    ["Brass Knuckles"] = "rbxassetid://3084443718",
+    ["Fisticuffs"] = "rbxassetid://3084444777",
+    ["Bat"] = "rbxassetid://3084443416",
+    ["Machete"] = "rbxassetid://3084445563",
+    ["Pan"] = "rbxassetid://3084445778",
+    ["Pitchfork"] = "rbxassetid://3084445923",
+    ["Claws"] = "rbxassetid://3084443811",
+    ["Ban Hammer"] = "rbxassetid://3084443309",
+    ["Classic Sword"] = "rbxassetid://3084443888",
+    ["Silver Bell"] = "rbxassetid://3084446311",
+    ["Swordfish"] = "rbxassetid://3084446335",
+    ["Icicle"] = "rbxassetid://3084444987",
+    ["Coal Sword"] = "rbxassetid://3084443784",
+    ["Kunai"] = "rbxassetid://3084445320",
+    ["Kukri"] = "rbxassetid://3084445332",
+    ["Sickle"] = "rbxassetid://3084446294",
+    ["Candy Cane"] = "rbxassetid://3084443524",
+    ["Pencil"] = "rbxassetid://3084445831",
+    ["Toy Tree"] = "rbxassetid://3084446133",
+    ["Bouquet"] = "rbxassetid://3084443666",
+    ["Gaster Blaster"] = "rbxassetid://3084444814",
+    ["Combat Knife"] = "rbxassetid://3084443756",
+    ["Tactical Knife"] = "rbxassetid://3084446056",
+    ["Shovel"] = "rbxassetid://3084446278",
+    ["Sledgehammer"] = "rbxassetid://3084446257",
+    ["Baton"] = "rbxassetid://3084443377",
+    ["Calculator"] = "rbxassetid://3084443493",
+    ["Katana"] = "rbxassetid://3084445170",
+    ["Literal Melee"] = "rbxassetid://3084445485",
+    ["Paddle"] = "rbxassetid://3084445800",
+    ["Rokia Hammer"] = "rbxassetid://3084446226",
+    ["Wrench"] = "rbxassetid://3084446643",
+    ["ACT Trophy"] = "rbxassetid://3084443113",
+    ["Electronic Stake"] = "rbxassetid://3084444728",
+    ["Garlic Kebab"] = "rbxassetid://3084444835",
+    ["Pumpkin Bucket"] = "rbxassetid://3084445986",
+    ["Fire Poker"] = "rbxassetid://3084444680",
+    ["Frog"] = "rbxassetid://3084444790",
+    ["Da Melee"] = "rbxassetid://3084443976",
+    ["Candy Cane Sword"] = "rbxassetid://3084443555",
+    ["Glacier Blade"] = "rbxassetid://3084444855",
+    ["Coal Scythe"] = "rbxassetid://3084443804",
+    ["Wooden Spoon"] = "rbxassetid://3084446600",
+    ["The Darkheart"] = "rbxassetid://3084446397",
+    ["The Firebrand"] = "rbxassetid://3084446449",
+    ["The Venomshank"] = "rbxassetid://3084446560",
+    ["The Illumina"] = "rbxassetid://3084446478",
+    ["The Ice Dagger"] = "rbxassetid://3084446459",
+    ["The Ghostwalker"] = "rbxassetid://3084446430",
+    ["The Windforce"] = "rbxassetid://3084446585",
+    ["Night's Edge"] = "rbxassetid://3084445680",
+    ["When Day Breaks"] = "rbxassetid://3084446616",
+    ["Banana"] = "rbxassetid://3084443297",
+    ["Persian Sword"] = "rbxassetid://3084445855",
+    ["Big Sip"] = "rbxassetid://3084443461",
+    ["Blade"] = "rbxassetid://3084443628",
+    ["Bat Axe"] = "rbxassetid://3084443343",
+    ["Fish"] = "rbxassetid://3084444751",
+    ["Khopesh"] = "rbxassetid://3084445214",
+    ["Rapier"] = "rbxassetid://3084446201",
+    ["Sabre"] = "rbxassetid://3084446239",
+    ["Slicecicle"] = "rbxassetid://3084446300",
+    ["Swift End"] = "rbxassetid://3084446347",
+    ["Divinity"] = "rbxassetid://3084444021",
+    ["Moai"] = "rbxassetid://3084445598",
+    ["Bone Karambit"] = "rbxassetid://3084443639",
+    ["Newspaper"] = "rbxassetid://3084445633",
+    ["Mop"] = "rbxassetid://3084445609",
 }
 
-local Arms = {
-    "Delinquent", "1x1x1x1", "Monky With Drip", "Da Monky With Drip", "Alien",
-    "Alien In Disguise", "Rabblerouser", "Ace Pilot",
-    "BrickBattle", "John", "Castlers", "Phoenix", "Punk", "Red Panda",
-    "Magician", "Froggy", "Mechanic", "Pizza Boy", "Garcello", "Bigfoot",
-    "Noob", "Bloxxer", "Farmer", "Paintballer", "Shedletsky", "Soldier",
-    "Agent", "Hazmat", "Seeker of Hearts", "Segg with Drip", "Christmas Nomad"
+local SkinsData = {
+    ["Delinquent"] = "rbxassetid://3203134215",
+    ["1x1x1x1"] = "rbxassetid://3203134123",
+    ["Monky With Drip"] = "rbxassetid://3203134301",
+    ["Da Monky With Drip"] = "rbxassetid://3203134189",
+    ["Alien"] = "rbxassetid://3203134156",
+    ["Alien In Disguise"] = "rbxassetid://3203134168",
+    ["Rabblerouser"] = "rbxassetid://3203134402",
+    ["Ace Pilot"] = "rbxassetid://3203134144",
+    ["BrickBattle"] = "rbxassetid://3203134178",
+    ["John"] = "rbxassetid://3203134247",
+    ["Castlers"] = "rbxassetid://3203134190",
+    ["Phoenix"] = "rbxassetid://3203134367",
+    ["Punk"] = "rbxassetid://3203134389",
+    ["Red Panda"] = "rbxassetid://3203134391",
+    ["Magician"] = "rbxassetid://3203134287",
+    ["Froggy"] = "rbxassetid://3203134236",
+    ["Mechanic"] = "rbxassetid://3203134290",
+    ["Pizza Boy"] = "rbxassetid://3203134378",
+    ["Garcello"] = "rbxassetid://3203134225",
+    ["Bigfoot"] = "rbxassetid://3203134167",
+    ["Noob"] = "rbxassetid://3203134320",
+    ["Bloxxer"] = "rbxassetid://3203134177",
+    ["Farmer"] = "rbxassetid://3203134224",
+    ["Paintballer"] = "rbxassetid://3203134348",
+    ["Shedletsky"] = "rbxassetid://3203134419",
+    ["Soldier"] = "rbxassetid://3203134432",
+    ["Agent"] = "rbxassetid://3203134145",
+    ["Hazmat"] = "rbxassetid://3203134248",
+    ["Seeker of Hearts"] = "rbxassetid://3203134417",
+    ["Segg with Drip"] = "rbxassetid://3203134418",
+    ["Christmas Nomad"] = "rbxassetid://3203134191",
 }
 
-local MeleeStandard = {
-    "Dagger", "Butterfly Knife", "Karambit", "Tomahawk", "Brass Knuckles",
-    "Fisticuffs", "Bat", "Machete", "Pan", "Pitchfork", "Claws", "Ban Hammer",
-    "Classic Sword", "Silver Bell", "Swordfish", "Icicle", "Coal Sword",
-    "Kunai", "Kukri", "Sickle", "Candy Cane", "Pencil", "Toy Tree", "Bouquet",
-    "Gaster Blaster", "Combat Knife", "Tactical Knife", "Shovel", "Sledgehammer",
-    "Baton", "Calculator", "Katana", "Literal Melee", "Paddle", "Rokia Hammer",
-    "Wrench", "ACT Trophy", "Electronic Stake", "Garlic Kebab", "Pumpkin Bucket",
-    "Fire Poker", "Frog", "Da Melee", "Candy Cane Sword", "Glacier Blade",
-    "Coal Scythe", "Wooden Spoon", "The Darkheart", "The Firebrand",
-    "The Venomshank", "The Illumina", "The Ice Dagger", "The Ghostwalker",
-    "The Windforce", "Night's Edge", "When Day Breaks", "Banana",
-    "Persian Sword", "Big Sip", "Blade", "Bat Axe", "Fish", "Khopesh",
-    "Rapier", "Sabre", "Slicecicle", "Swift End", "Divinity", "Moai"
+local AnnouncerData = {
+    ["American"] = "rbxassetid://5729107282",
+    ["British"] = "rbxassetid://5729107363",
+    ["Russian"] = "rbxassetid://5729107419",
+    ["Homeless"] = "rbxassetid://5729107375",
+    ["Warcrimes"] = "rbxassetid://5729107431",
+    ["YouTuber"] = "rbxassetid://5729107519",
+    ["Movie Man"] = "rbxassetid://5729107390",
+    ["Santa"] = "rbxassetid://5729107443",
+    ["Murderous Child"] = "rbxassetid://5729107382",
+    ["Hackula"] = "rbxassetid://5729107350",
+    ["Jolly Narrator"] = "rbxassetid://5729107376",
+    ["Carnival Carnie"] = "rbxassetid://5729107319",
+    ["John"] = "rbxassetid://5729107365",
+    ["Eprika"] = "rbxassetid://5729107331",
+    ["Flamingo"] = "rbxassetid://5729107343",
+    ["Petrify"] = "rbxassetid://5729107405",
+    ["Bandites"] = "rbxassetid://5729107307",
+    ["xonae"] = "rbxassetid://5729107507",
+    ["Enforcer"] = "rbxassetid://5729107329",
+    ["Koneko"] = "rbxassetid://5729107373",
+    ["Weesnaw"] = "rbxassetid://5729107489",
 }
 
-local MeleeTroll = {
-    "Moai", "Bone Karambit", "Calculator", "Pencil", "Newspaper",
-    "Mop", "Fish", "Literal Melee", "Banana", "Toy Tree", "Bouquet"
+local CardData = {
+    ["Default"] = "rbxassetid://5729108224",
+    ["Red"] = "rbxassetid://5729108235",
+    ["Blue"] = "rbxassetid://5729108247",
+    ["Green"] = "rbxassetid://5729108259",
+    ["Gold"] = "rbxassetid://5729108271",
+    ["Purple"] = "rbxassetid://5729108283",
+    ["Rainbow"] = "rbxassetid://5729108295",
 }
 
-local MeleeTryhard = {
-    "Bone Karambit", "The Darkheart", "The Firebrand", "The Venomshank",
-    "The Illumina", "The Ice Dagger", "The Ghostwalker", "The Windforce",
-    "Night's Edge", "Katana", "Butterfly Knife", "Karambit"
+local CrateData = {
+    ["Default"] = "rbxassetid://5729108224",
+    ["Premium"] = "rbxassetid://5729108235",
+    ["Deluxe"] = "rbxassetid://5729108247",
 }
 
---// LOGIC — EXACT COPY FROM ORIGINAL SCRIPT
+--// LOGIC
+local function SetMelee(name)
+    pcall(function()
+        LocalPlayer.Data.Melee.Value = name
+    end)
+end
+
+local function SetSkin(name)
+    pcall(function()
+        LocalPlayer.Data.Skin.Value = name
+    end)
+end
 
 local function SetAnnouncer(name)
     pcall(function()
-        game.Players.LocalPlayer.Data.Announcer.Value = name
+        LocalPlayer.Data.Announcer.Value = name
     end)
 end
 
-local function SetMelee(name)
+local function SetCard(name)
     pcall(function()
-        game.Players.LocalPlayer.Data.Melee.Value = name
+        LocalPlayer.Data.Card.Value = name
     end)
 end
 
---// ARMS — EXACTLY like the original script
-local function ApplyArms(arm)
+local function SetCrate(name)
     pcall(function()
-        local arms = game:GetService("ReplicatedStorage"):WaitForChild("Viewmodels").Arms
-        for _, child in ipairs(arms:GetChildren()) do
-            if child.Name ~= arm then
-                child.Name = "Temp"
+        LocalPlayer.Data.Crate.Value = name
+    end)
+end
+
+--// GUI HELPERS
+local function CreateSearchableDropdown(g, y, label, data, default, callback)
+    -- Search box
+    local SearchFrame = Instance.new("Frame")
+    SearchFrame.Size = UDim2.new(1, 0, 0, 30)
+    SearchFrame.Position = UDim2.fromOffset(0, y)
+    SearchFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    SearchFrame.BorderSizePixel = 0
+    SearchFrame.ZIndex = 4
+    SearchFrame.Parent = g.Content
+
+    local SearchCorner = Instance.new("UICorner")
+    SearchCorner.CornerRadius = UDim.new(0, 6)
+    SearchCorner.Parent = SearchFrame
+
+    local SearchBox = Instance.new("TextBox")
+    SearchBox.Size = UDim2.new(1, -10, 1, 0)
+    SearchBox.Position = UDim2.fromOffset(5, 0)
+    SearchBox.BackgroundTransparency = 1
+    SearchBox.Text = "Search " .. label:lower() .. "..."
+    SearchBox.TextColor3 = Color3.fromRGB(150, 150, 150)
+    SearchBox.TextSize = 12
+    SearchBox.Font = Enum.Font.Gotham
+    SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+    SearchBox.ClearTextOnFocus = false
+    SearchBox.ZIndex = 5
+    SearchBox.Parent = SearchFrame
+
+    -- Dropdown button
+    local DropBtn = Instance.new("TextButton")
+    DropBtn.Size = UDim2.new(1, 0, 0, 32)
+    DropBtn.Position = UDim2.fromOffset(0, y + 34)
+    DropBtn.BackgroundColor3 = Color3.fromRGB(14, 14, 14)
+    DropBtn.BorderSizePixel = 0
+    DropBtn.Text = default .. " ▼"
+    DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DropBtn.TextSize = 12
+    DropBtn.Font = Enum.Font.GothamMedium
+    DropBtn.AutoButtonColor = false
+    DropBtn.ZIndex = 4
+    DropBtn.Parent = g.Content
+
+    local DropCorner = Instance.new("UICorner")
+    DropCorner.CornerRadius = UDim.new(0, 6)
+    DropCorner.Parent = DropBtn
+
+    local DropStroke = Instance.new("UIStroke")
+    DropStroke.Color = Color3.fromRGB(65, 25, 27)
+    DropStroke.Thickness = 1
+    DropStroke.Parent = DropBtn
+
+    -- Preview image
+    local Preview = Instance.new("ImageLabel")
+    Preview.Size = UDim2.fromOffset(60, 60)
+    Preview.Position = UDim2.new(1, -70, 0, y + 70)
+    Preview.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Preview.BorderSizePixel = 0
+    Preview.Image = data[default] or ""
+    Preview.ScaleType = Enum.ScaleType.Fit
+    Preview.ZIndex = 4
+    Preview.Parent = g.Content
+
+    local PreviewCorner = Instance.new("UICorner")
+    PreviewCorner.CornerRadius = UDim.new(0, 6)
+    PreviewCorner.Parent = Preview
+
+    -- Popup list
+    local Popup = Instance.new("Frame")
+    Popup.Size = UDim2.fromOffset(200, 200)
+    Popup.Position = UDim2.fromOffset(0, y + 70)
+    Popup.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+    Popup.BorderSizePixel = 0
+    Popup.Visible = false
+    Popup.ZIndex = 100
+    Popup.Parent = g.ScreenGui
+
+    local PopupCorner = Instance.new("UICorner")
+    PopupCorner.CornerRadius = UDim.new(0, 8)
+    PopupCorner.Parent = Popup
+
+    local PopupStroke = Instance.new("UIStroke")
+    PopupStroke.Color = Color3.fromRGB(145, 20, 25)
+    PopupStroke.Thickness = 1.5
+    PopupStroke.Parent = Popup
+
+    local PopupScroll = Instance.new("ScrollingFrame")
+    PopupScroll.Size = UDim2.new(1, -4, 1, -4)
+    PopupScroll.Position = UDim2.fromOffset(2, 2)
+    PopupScroll.BackgroundTransparency = 1
+    PopupScroll.BorderSizePixel = 0
+    PopupScroll.ScrollBarThickness = 3
+    PopupScroll.ScrollBarImageColor3 = Color3.fromRGB(195, 28, 35)
+    PopupScroll.ZIndex = 101
+    PopupScroll.Parent = Popup
+
+    local PopupLayout = Instance.new("UIListLayout")
+    PopupLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    PopupLayout.Padding = UDim.new(0, 2)
+    PopupLayout.Parent = PopupScroll
+
+    local selected = default
+    local allOptions = {}
+    for name, img in pairs(data) do
+        table.insert(allOptions, {Name = name, Image = img})
+    end
+    table.sort(allOptions, function(a, b) return a.Name < b.Name end)
+
+    local function RebuildList(filter)
+        for _, child in ipairs(PopupScroll:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+
+        local count = 0
+        for i, opt in ipairs(allOptions) do
+            if not filter or opt.Name:lower():find(filter:lower()) then
+                count = count + 1
+                local Btn = Instance.new("TextButton")
+                Btn.Size = UDim2.new(1, 0, 0, 28)
+                Btn.LayoutOrder = i
+                Btn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+                Btn.BorderSizePixel = 0
+                Btn.Text = "  " .. opt.Name
+                Btn.TextColor3 = opt.Name == selected and Color3.fromRGB(195, 28, 35) or Color3.fromRGB(225, 225, 225)
+                Btn.TextSize = 11
+                Btn.Font = Enum.Font.GothamMedium
+                Btn.TextXAlignment = Enum.TextXAlignment.Left
+                Btn.AutoButtonColor = false
+                Btn.ZIndex = 102
+                Btn.Parent = PopupScroll
+
+                Btn.MouseEnter:Connect(function()
+                    Btn.BackgroundColor3 = Color3.fromRGB(40, 22, 24)
+                end)
+                Btn.MouseLeave:Connect(function()
+                    Btn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+                end)
+                Btn.MouseButton1Click:Connect(function()
+                    selected = opt.Name
+                    DropBtn.Text = opt.Name .. " ▼"
+                    Preview.Image = opt.Image or ""
+                    Popup.Visible = false
+                    if callback then callback(opt.Name) end
+                end)
             end
         end
-        local target = arms:FindFirstChild(arm)
-        if target then
-            target.Name = "Delinquent"
+        PopupScroll.CanvasSize = UDim2.new(0, 0, 0, count * 30)
+    end
+
+    RebuildList(nil)
+
+    SearchBox.Focused:Connect(function()
+        if SearchBox.Text == "Search " .. label:lower() .. "..." then
+            SearchBox.Text = ""
+            SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
         end
     end)
-end
 
-local function RevertArms()
-    pcall(function()
-        local arms = game:GetService("ReplicatedStorage"):WaitForChild("Viewmodels").Arms
-        for _, child in ipairs(arms:GetChildren()) do
-            child.Name = "Delinquent"
+    SearchBox.FocusLost:Connect(function()
+        if SearchBox.Text == "" then
+            SearchBox.Text = "Search " .. label:lower() .. "..."
+            SearchBox.TextColor3 = Color3.fromRGB(150, 150, 150)
         end
     end)
-end
 
-local function RevertMelee()
-    pcall(function()
-        game.Players.LocalPlayer.Data.Melee.Value = "Dagger"
+    SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        local filter = SearchBox.Text
+        if filter == "Search " .. label:lower() .. "..." then
+            filter = nil
+        end
+        RebuildList(filter)
     end)
+
+    DropBtn.MouseButton1Click:Connect(function()
+        Popup.Visible = not Popup.Visible
+    end)
+
+    return y + 140
 end
 
 --// GUI
-
 function SkinChanger:Init(Gui)
     self.Gui = Gui
 
@@ -114,43 +382,35 @@ function SkinChanger:Init(Gui)
         local originalContent = g.Content
         g.Content = scroll
 
-        local y = g:CreateSection("Announcer", 0)
-        y = g:CreateDropdown("Announcer Voice", Announcers, "American", function(val)
+        local y = g:CreateSection("Melee", 0)
+        y = CreateSearchableDropdown(g, y, "Melee", MeleeData, "Dagger", function(val)
+            SetMelee(val)
+        end)
+
+        y = g:CreateSection("Character Skin", y + 10)
+        y = CreateSearchableDropdown(g, y, "Skin", SkinsData, "Delinquent", function(val)
+            SetSkin(val)
+        end)
+
+        y = g:CreateSection("Announcer", y + 10)
+        y = CreateSearchableDropdown(g, y, "Announcer", AnnouncerData, "American", function(val)
             SetAnnouncer(val)
-        end, y)
+        end)
 
-        y = g:CreateSection("Arms", y + 10)
-        y = g:CreateDropdown("Arm Model", Arms, "Delinquent", function(val)
-            ApplyArms(val)
-        end, y)
-        y = g:CreateButton("Revert Arms", function()
-            RevertArms()
-        end, y)
+        y = g:CreateSection("Card", y + 10)
+        y = CreateSearchableDropdown(g, y, "Card", CardData, "Default", function(val)
+            SetCard(val)
+        end)
 
-        y = g:CreateSection("Melee — Standard", y + 10)
-        y = g:CreateDropdown("Standard Melee", MeleeStandard, "Dagger", function(val)
-            SetMelee(val)
-        end, y)
-
-        y = g:CreateSection("Melee — Troll", y + 10)
-        y = g:CreateDropdown("Troll Melee", MeleeTroll, "Moai", function(val)
-            SetMelee(val)
-        end, y)
-
-        y = g:CreateSection("Melee — Tryhard", y + 10)
-        y = g:CreateDropdown("Tryhard Melee", MeleeTryhard, "Bone Karambit", function(val)
-            SetMelee(val)
-        end, y)
-
-        y = g:CreateSection("Reset", y + 10)
-        y = g:CreateButton("Revert Melee to Dagger", function()
-            RevertMelee()
-        end, y)
+        y = g:CreateSection("Crate", y + 10)
+        y = CreateSearchableDropdown(g, y, "Crate", CrateData, "Default", function(val)
+            SetCrate(val)
+        end)
 
         g.Content = originalContent
     end)
 
-    print("[ENI] Skin Changer loaded — exact original arms logic")
+    print("[ENI] Skin Changer loaded — Lunar X style with search + previews")
     return self
 end
 
