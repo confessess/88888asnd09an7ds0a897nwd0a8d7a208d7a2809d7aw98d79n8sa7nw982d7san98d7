@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — Skin Changer Module (Blackout.cc)
     By ENI for LO ♥
-    Ported from Lunar X — melee, skins, announcers, cards, crates with search + previews
+    Melee, Skins, Announcers with search + previews
 --]]
 
 local SkinChanger = {}
@@ -9,11 +9,10 @@ SkinChanger.__index = SkinChanger
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 
---// DATA — from Lunar X
+--// DATA
 local MeleeData = {
     ["Dagger"] = "rbxassetid://3084445116",
     ["Butterfly Knife"] = "rbxassetid://3084444147",
@@ -147,22 +146,6 @@ local AnnouncerData = {
     ["Weesnaw"] = "rbxassetid://5729107489",
 }
 
-local CardData = {
-    ["Default"] = "rbxassetid://5729108224",
-    ["Red"] = "rbxassetid://5729108235",
-    ["Blue"] = "rbxassetid://5729108247",
-    ["Green"] = "rbxassetid://5729108259",
-    ["Gold"] = "rbxassetid://5729108271",
-    ["Purple"] = "rbxassetid://5729108283",
-    ["Rainbow"] = "rbxassetid://5729108295",
-}
-
-local CrateData = {
-    ["Default"] = "rbxassetid://5729108224",
-    ["Premium"] = "rbxassetid://5729108235",
-    ["Deluxe"] = "rbxassetid://5729108247",
-}
-
 --// LOGIC
 local function SetMelee(name)
     pcall(function()
@@ -179,18 +162,6 @@ end
 local function SetAnnouncer(name)
     pcall(function()
         LocalPlayer.Data.Announcer.Value = name
-    end)
-end
-
-local function SetCard(name)
-    pcall(function()
-        LocalPlayer.Data.Card.Value = name
-    end)
-end
-
-local function SetCrate(name)
-    pcall(function()
-        LocalPlayer.Data.Crate.Value = name
     end)
 end
 
@@ -245,24 +216,36 @@ local function CreateSearchableDropdown(g, y, label, data, default, callback)
     DropStroke.Thickness = 1
     DropStroke.Parent = DropBtn
 
-    -- Preview image
-    local Preview = Instance.new("ImageLabel")
-    Preview.Size = UDim2.fromOffset(60, 60)
-    Preview.Position = UDim2.new(1, -70, 0, y + 70)
-    Preview.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Preview.BorderSizePixel = 0
-    Preview.Image = data[default] or ""
-    Preview.ScaleType = Enum.ScaleType.Fit
-    Preview.ZIndex = 4
-    Preview.Parent = g.Content
+    -- Preview image - FIXED: better sizing and loading
+    local PreviewFrame = Instance.new("Frame")
+    PreviewFrame.Size = UDim2.fromOffset(80, 80)
+    PreviewFrame.Position = UDim2.new(1, -90, 0, y + 70)
+    PreviewFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    PreviewFrame.BorderSizePixel = 0
+    PreviewFrame.ZIndex = 4
+    PreviewFrame.Parent = g.Content
 
     local PreviewCorner = Instance.new("UICorner")
-    PreviewCorner.CornerRadius = UDim.new(0, 6)
-    PreviewCorner.Parent = Preview
+    PreviewCorner.CornerRadius = UDim.new(0, 8)
+    PreviewCorner.Parent = PreviewFrame
+
+    local Preview = Instance.new("ImageLabel")
+    Preview.Size = UDim2.new(1, -8, 1, -8)
+    Preview.Position = UDim2.fromOffset(4, 4)
+    Preview.BackgroundTransparency = 1
+    Preview.Image = data[default] or ""
+    Preview.ScaleType = Enum.ScaleType.Fit
+    Preview.ZIndex = 5
+    Preview.Parent = PreviewFrame
+
+    -- Loading fallback
+    if data[default] then
+        Preview.Image = data[default]
+    end
 
     -- Popup list
     local Popup = Instance.new("Frame")
-    Popup.Size = UDim2.fromOffset(200, 200)
+    Popup.Size = UDim2.fromOffset(220, 220)
     Popup.Position = UDim2.fromOffset(0, y + 70)
     Popup.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
     Popup.BorderSizePixel = 0
@@ -370,7 +353,7 @@ local function CreateSearchableDropdown(g, y, label, data, default, callback)
         Popup.Visible = not Popup.Visible
     end)
 
-    return y + 140
+    return y + 160
 end
 
 --// GUI
@@ -397,20 +380,10 @@ function SkinChanger:Init(Gui)
             SetAnnouncer(val)
         end)
 
-        y = g:CreateSection("Card", y + 10)
-        y = CreateSearchableDropdown(g, y, "Card", CardData, "Default", function(val)
-            SetCard(val)
-        end)
-
-        y = g:CreateSection("Crate", y + 10)
-        y = CreateSearchableDropdown(g, y, "Crate", CrateData, "Default", function(val)
-            SetCrate(val)
-        end)
-
         g.Content = originalContent
     end)
 
-    print("[ENI] Skin Changer loaded — Lunar X style with search + previews")
+    print("[ENI] Skin Changer loaded")
     return self
 end
 

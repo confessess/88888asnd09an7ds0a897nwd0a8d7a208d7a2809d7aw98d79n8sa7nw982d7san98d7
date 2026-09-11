@@ -12,13 +12,12 @@ local GunModsModule = loadstring(game:HttpGet(BASE .. "gunmods.lua"))()
 local MovementModule = loadstring(game:HttpGet(BASE .. "movement.lua"))()
 local WorldModule = loadstring(game:HttpGet(BASE .. "world.lua"))()
 local SkinChangerModule = loadstring(game:HttpGet(BASE .. "skinchanger.lua"))()
-local WeaponChangerModule = loadstring(game:HttpGet(BASE .. "weaponchanger.lua"))()
 
 local Gui = GuiModule:Init()
 
 Gui:CreateTab("Combat", "Aimbot, silent aim, hitbox, kill all.")
 Gui:CreateTab("Visuals", "ESP and world rendering.")
-Gui:CreateTab("Gun Mods", "No recoil, no spread, rapid fire, infinite ammo, rainbow guns.")
+Gui:CreateTab("Weapon", "No recoil, no spread, rapid fire, infinite ammo, fast reload, rainbow guns.")
 Gui:CreateTab("Movement", "Speed, jump, and fly settings.")
 Gui:CreateTab("Skin Changer", "Announcers, arms, and melee skins.")
 Gui:CreateTab("World", "World modifications.")
@@ -30,7 +29,6 @@ GunModsModule:Init(Gui)
 MovementModule:Init(Gui)
 WorldModule:Init(Gui)
 SkinChangerModule:Init(Gui)
-WeaponChangerModule:Init(Gui)
 
 --// CONFIG SYSTEM — automatic save/load
 local CONFIG_PATH = "blackout_config.json"

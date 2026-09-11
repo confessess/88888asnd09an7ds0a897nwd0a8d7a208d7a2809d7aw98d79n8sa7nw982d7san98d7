@@ -1,8 +1,7 @@
 --[[
     Arsenal Suite — Gun Mods Module (Blackout.cc)
     By ENI for LO ♥
-    No Recoil, No Spread, Rapid Fire, Infinite Ammo, Rainbow Guns
-    v2 — Fixed rainbow guns
+    No Recoil, No Spread, Rapid Fire, Infinite Ammo, Rainbow Guns, Fast Reload
 --]]
 
 local GunMods = {}
@@ -51,6 +50,8 @@ local function BuildWeaponCache()
                 WeaponCache[key] = { Obj = weapon, Original = weapon.Value, Type = "spread" }
             elseif weapon.Name == "Auto" then
                 WeaponCache[key] = { Obj = weapon, Original = weapon.Value, Type = "auto" }
+            elseif weapon.Name == "ReloadTime" or weapon.Name == "Reload" or weapon.Name == "TacticalReload" then
+                WeaponCache[key] = { Obj = weapon, Original = weapon.Value, Type = "reload" }
             end
         end
     end
@@ -76,6 +77,9 @@ local function ApplyMods()
                 else
                     data.Obj.Value = 0
                 end
+            end
+            if GunMods.Config.FastReload and data.Type == "reload" then
+                data.Obj.Value = 0.01
             end
         else
             WeaponCache[key] = nil
@@ -123,7 +127,7 @@ local function OnToolEquipped(tool)
     CurrentTool = tool
     ClearCache()
     task.wait(0.1)
-    if GunMods.Config.NoRecoil or GunMods.Config.RapidFire or GunMods.Config.NoSpread then
+    if GunMods.Config.NoRecoil or GunMods.Config.RapidFire or GunMods.Config.NoSpread or GunMods.Config.FastReload then
         BuildWeaponCache()
         ApplyMods()
     end
@@ -155,49 +159,7 @@ local function SetupCharacter(char)
     end)
 end
 
-
---// FAST RELOAD — from Lunar X
-local function ApplyFastReload()
-    local weapons = ReplicatedStorage:FindFirstChild("Weapons")
-    if not weapons then return end
-
-    for _, w in ipairs(weapons:GetChildren()) do
-        if w:FindFirstChild("FireRate") then
-            if GunMods.Config.FastReload then
-                -- Set reload time to near-zero
-                local reload = w:FindFirstChild("ReloadTime") or w:FindFirstChild("Reload")
-                if reload and reload:IsA("NumberValue") then
-                    if not reload:GetAttribute("OriginalValue") then
-                        reload:SetAttribute("OriginalValue", reload.Value)
-                    end
-                    reload.Value = 0.01
-                end
-                -- Also try TacticalReload
-                local tactical = w:FindFirstChild("TacticalReload")
-                if tactical and tactical:IsA("NumberValue") then
-                    if not tactical:GetAttribute("OriginalValue") then
-                        tactical:SetAttribute("OriginalValue", tactical.Value)
-                    end
-                    tactical.Value = 0.01
-                end
-            else
-                -- Restore original
-                local reload = w:FindFirstChild("ReloadTime") or w:FindFirstChild("Reload")
-                if reload and reload:IsA("NumberValue") then
-                    local orig = reload:GetAttribute("OriginalValue")
-                    if orig then reload.Value = orig end
-                end
-                local tactical = w:FindFirstChild("TacticalReload")
-                if tactical and tactical:IsA("NumberValue") then
-                    local orig = tactical:GetAttribute("OriginalValue")
-                    if orig then tactical.Value = orig end
-                end
-            end
-        end
-    end
-end
-
---// RAINBOW GUNS — FIXED: uses Heartbeat, better part detection
+--// RAINBOW GUNS
 local RainbowConnection = nil
 local Hue = 0
 local OriginalGunData = {}
@@ -219,33 +181,15 @@ local function CacheOriginalData(tool)
                 Material = part.Material
             }
         end
-        if part:IsA("ParticleEmitter") then
-            OriginalGunData[part] = {
-                Color = part.Color,
-                LightEmission = part.LightEmission
-            }
-        end
-        if part:IsA("Trail") then
-            OriginalGunData[part] = {
-                Color = part.Color
-            }
-        end
     end
 end
 
 local function RestoreOriginalData()
     for part, data in pairs(OriginalGunData) do
         if part and part.Parent then
-            if part:IsA("ParticleEmitter") then
-                part.Color = data.Color
-                part.LightEmission = data.LightEmission
-            elseif part:IsA("Trail") then
-                part.Color = data.Color
-            else
-                part.Color = data.Color
-                part.Transparency = data.Transparency
-                part.Material = data.Material
-            end
+            part.Color = data.Color
+            part.Transparency = data.Transparency
+            part.Material = data.Material
         end
     end
     OriginalGunData = {}
@@ -259,13 +203,6 @@ local function ApplyRainbow(tool, hue)
             part.Color = color
             part.Transparency = GunMods.Config.GunTransparency
             part.Material = Enum.Material.Neon
-        end
-        if part:IsA("ParticleEmitter") then
-            part.Color = ColorSequence.new(color)
-            part.LightEmission = 0.8
-        end
-        if part:IsA("Trail") then
-            part.Color = ColorSequence.new(color)
         end
     end
 end
@@ -314,7 +251,7 @@ end
 function GunMods:Init(Gui)
     self.Gui = Gui
 
-    Gui:SetTabRebuild("Gun Mods", function(g)
+    Gui:SetTabRebuild("Weapon", function(g)
         local scroll = g:CreateScrollContent()
         local originalContent = g.Content
         g.Content = scroll
@@ -342,7 +279,7 @@ function GunMods:Init(Gui)
 
         y = g:CreateToggle("Fast Reload", GunMods.Config.FastReload, function(state)
             GunMods.Config.FastReload = state
-            ApplyFastReload()
+            if state then BuildWeaponCache() ApplyMods() else RestoreMods() end
         end, y)
 
         y = g:CreateSlider("Fire Rate", 1, 200, math.floor(GunMods.Config.FireRate * 1000), function(val)
@@ -352,7 +289,7 @@ function GunMods:Init(Gui)
             end
         end, y)
 
-        y = g:CreateSection("Skin Changer", y + 10)
+        y = g:CreateSection("Rainbow Guns", y + 10)
         y = g:CreateToggle("Rainbow Guns", GunMods.Config.RainbowGuns, function(state)
             GunMods.Config.RainbowGuns = state
             if state then StartRainbow() else GunMods:StopRainbow() end
@@ -374,17 +311,13 @@ function GunMods:Init(Gui)
         CurrentTool = nil
         task.wait(0.5)
         SetupCharacter(char)
-        if GunMods.Config.NoRecoil or GunMods.Config.RapidFire or GunMods.Config.NoSpread then
+        if GunMods.Config.NoRecoil or GunMods.Config.RapidFire or GunMods.Config.NoSpread or GunMods.Config.FastReload then
             BuildWeaponCache()
             ApplyMods()
         end
         if GunMods.Config.InfiniteAmmo then
             ApplyInfiniteAmmo()
         end
-        if GunMods.Config.FastReload then
-            ApplyFastReload()
-        end
-        -- Restart rainbow if it was on
         if GunMods.Config.RainbowGuns then
             task.wait(1)
             StartRainbow()
@@ -394,7 +327,7 @@ function GunMods:Init(Gui)
     task.spawn(function()
         while true do
             task.wait(2)
-            if GunMods.Config.NoRecoil or GunMods.Config.RapidFire or GunMods.Config.NoSpread then
+            if GunMods.Config.NoRecoil or GunMods.Config.RapidFire or GunMods.Config.NoSpread or GunMods.Config.FastReload then
                 ApplyMods()
             end
             if GunMods.Config.InfiniteAmmo then
