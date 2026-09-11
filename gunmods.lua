@@ -2,6 +2,7 @@
     Arsenal Suite — Gun Mods Module (Blackout.cc)
     By ENI for LO ♥
     No Recoil, No Spread, Rapid Fire, Infinite Ammo, Rainbow Guns
+    v2 — Fixed rainbow guns
 --]]
 
 local GunMods = {}
@@ -153,7 +154,7 @@ local function SetupCharacter(char)
     end)
 end
 
---// RAINBOW GUNS
+--// RAINBOW GUNS — FIXED: uses Heartbeat, better part detection
 local RainbowConnection = nil
 local Hue = 0
 local OriginalGunData = {}
@@ -168,16 +169,22 @@ local function CacheOriginalData(tool)
     OriginalGunData = {}
     if not tool then return end
     for _, part in ipairs(tool:GetDescendants()) do
-        if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
+        if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") or part:IsA("Part") then
             OriginalGunData[part] = {
                 Color = part.Color,
-                Transparency = part.Transparency
+                Transparency = part.Transparency,
+                Material = part.Material
             }
         end
         if part:IsA("ParticleEmitter") then
             OriginalGunData[part] = {
                 Color = part.Color,
                 LightEmission = part.LightEmission
+            }
+        end
+        if part:IsA("Trail") then
+            OriginalGunData[part] = {
+                Color = part.Color
             }
         end
     end
@@ -189,9 +196,12 @@ local function RestoreOriginalData()
             if part:IsA("ParticleEmitter") then
                 part.Color = data.Color
                 part.LightEmission = data.LightEmission
+            elseif part:IsA("Trail") then
+                part.Color = data.Color
             else
                 part.Color = data.Color
                 part.Transparency = data.Transparency
+                part.Material = data.Material
             end
         end
     end
@@ -202,9 +212,10 @@ local function ApplyRainbow(tool, hue)
     if not tool then return end
     local color = Color3.fromHSV(hue % 1, 0.9, 1)
     for _, part in ipairs(tool:GetDescendants()) do
-        if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
+        if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") or part:IsA("Part") then
             part.Color = color
             part.Transparency = GunMods.Config.GunTransparency
+            part.Material = Enum.Material.Neon
         end
         if part:IsA("ParticleEmitter") then
             part.Color = ColorSequence.new(color)
@@ -220,6 +231,7 @@ local RainbowTool = nil
 
 local function StartRainbow()
     if RainbowConnection then return end
+    print("[ENI] Rainbow Guns started")
     RainbowTool = GetEquippedTool()
     if RainbowTool then CacheOriginalData(RainbowTool) end
 
@@ -248,6 +260,7 @@ function GunMods:StopRainbow()
     if RainbowConnection then
         RainbowConnection:Disconnect()
         RainbowConnection = nil
+        print("[ENI] Rainbow Guns stopped")
     end
     RestoreOriginalData()
     RainbowTool = nil
@@ -320,6 +333,11 @@ function GunMods:Init(Gui)
         if GunMods.Config.InfiniteAmmo then
             ApplyInfiniteAmmo()
         end
+        -- Restart rainbow if it was on
+        if GunMods.Config.RainbowGuns then
+            task.wait(1)
+            StartRainbow()
+        end
     end)
 
     task.spawn(function()
@@ -334,7 +352,7 @@ function GunMods:Init(Gui)
         end
     end)
 
-    print("[ENI] Gun Mods loaded — Infinite Ammo + NoSpread + Rainbow")
+    print("[ENI] Gun Mods loaded")
     return self
 end
 
