@@ -1,8 +1,7 @@
 --[[
     Arsenal Suite — GUI Framework (Blackout.cc)
     By ENI for LO ♥
-    Modular sidebar GUI with animations, drag, keybind capture
-    v3 — Red BG wave effect (top-right → bottom-left), fixed tab text overlap
+    v4 — Tight spacing, fixed RightShift toggle, wave effect
 --]]
 
 local Gui = {}
@@ -13,7 +12,6 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -21,7 +19,6 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 --// Colors
 local BLACK      = Color3.fromRGB(2, 2, 2)
 local BACKGROUND = Color3.fromRGB(7, 7, 7)
-local PANEL      = Color3.fromRGB(10, 10, 10)
 local DARK_PANEL = Color3.fromRGB(14, 14, 14)
 local RED        = Color3.fromRGB(145, 20, 25)
 local RED_BRIGHT = Color3.fromRGB(195, 28, 35)
@@ -33,7 +30,7 @@ local LIGHT      = Color3.fromRGB(225, 225, 225)
 local GRAY       = Color3.fromRGB(150, 150, 150)
 local BORDER     = Color3.fromRGB(65, 25, 27)
 
---// Wave Config (red, background only, top-right → bottom-left)
+--// Wave Config
 local WAVE_COLOR        = Color3.fromRGB(255, 130, 130)
 local WAVE_PEAK_TRANS   = 0.82
 local WAVE_BAND_WIDTH   = 0.28
@@ -61,15 +58,15 @@ function Gui:Init()
 
     local Main = Instance.new("Frame")
     Main.Name = "Main"
-    Main.Size = UDim2.fromOffset(760, 500)
-    Main.Position = UDim2.new(0.5, -380, 0.5, -250)
+    Main.Size = UDim2.fromOffset(680, 440)
+    Main.Position = UDim2.new(0.5, -340, 0.5, -220)
     Main.BackgroundColor3 = BACKGROUND
     Main.BorderSizePixel = 0
     Main.ClipsDescendants = true
     Main.Parent = ScreenGui
 
     local MainCorner = Instance.new("UICorner")
-    MainCorner.CornerRadius = UDim.new(0, 14)
+    MainCorner.CornerRadius = UDim.new(0, 12)
     MainCorner.Parent = Main
 
     local MainStroke = Instance.new("UIStroke")
@@ -81,24 +78,22 @@ function Gui:Init()
     local SavedPosition = Main.Position
     local OriginalSize = Main.Size
 
-    --// ═══════════ BACKGROUND FRAME + RED WAVE (top-right → bottom-left) ═══════════
+    --// Background + Wave
     local Background = Instance.new("Frame")
     Background.Name = "Background"
     Background.Size = UDim2.fromScale(1, 1)
-    Background.Position = UDim2.fromScale(0, 0)
     Background.BackgroundColor3 = BACKGROUND
     Background.BorderSizePixel = 0
     Background.ZIndex = 1
     Background.Parent = Main
 
     local BgCorner = Instance.new("UICorner")
-    BgCorner.CornerRadius = UDim.new(0, 14)
+    BgCorner.CornerRadius = UDim.new(0, 12)
     BgCorner.Parent = Background
 
     local sheen = Instance.new("Frame")
     sheen.Name = "ENI_WaveSheen"
     sheen.Size = UDim2.fromScale(1, 1)
-    sheen.Position = UDim2.fromScale(0, 0)
     sheen.BackgroundColor3 = WAVE_COLOR
     sheen.BackgroundTransparency = 0
     sheen.BorderSizePixel = 0
@@ -125,52 +120,41 @@ function Gui:Init()
         RunService.RenderStepped:Connect(function(dt)
             if not sheen.Parent then return end
             if not Main.Visible then return end
-
             if paused then
                 pauseTimer = pauseTimer - dt
-                if pauseTimer <= 0 then
-                    paused = false
-                    offset = 1.5
-                end
+                if pauseTimer <= 0 then paused = false offset = 1.5 end
                 return
             end
-
             offset = offset - (speed * dt)
-
-            if offset <= -1.5 then
-                paused = true
-                pauseTimer = WAVE_PAUSE
-            end
-
+            if offset <= -1.5 then paused = true pauseTimer = WAVE_PAUSE end
             waveGrad.Offset = Vector2.new(offset, 0)
         end)
     end
-    --// ═══════════════════════════════════════════════════════════════════════════
 
+    --// TopBar
     local Top = Instance.new("Frame")
     Top.Name = "TopBar"
-    Top.Size = UDim2.new(1, 0, 0, 70)
+    Top.Size = UDim2.new(1, 0, 0, 58)
     Top.BackgroundColor3 = BLACK
     Top.BorderSizePixel = 0
     Top.ZIndex = 2
     Top.Parent = Main
 
     local TopCorner = Instance.new("UICorner")
-    TopCorner.CornerRadius = UDim.new(0, 14)
+    TopCorner.CornerRadius = UDim.new(0, 12)
     TopCorner.Parent = Top
 
     local TopBottom = Instance.new("Frame")
-    TopBottom.Size = UDim2.new(1, 0, 0, 14)
-    TopBottom.Position = UDim2.new(0, 0, 1, -14)
+    TopBottom.Size = UDim2.new(1, 0, 0, 12)
+    TopBottom.Position = UDim2.new(0, 0, 1, -12)
     TopBottom.BackgroundColor3 = BLACK
     TopBottom.BorderSizePixel = 0
     TopBottom.ZIndex = 2
     TopBottom.Parent = Top
 
     local Accent = Instance.new("Frame")
-    Accent.Name = "RedAccent"
-    Accent.Size = UDim2.new(1, -42, 0, 4)
-    Accent.Position = UDim2.fromOffset(21, 66)
+    Accent.Size = UDim2.new(1, -36, 0, 3)
+    Accent.Position = UDim2.fromOffset(18, 55)
     Accent.BackgroundColor3 = RED_BRIGHT
     Accent.BorderSizePixel = 0
     Accent.ZIndex = 5
@@ -180,72 +164,63 @@ function Gui:Init()
     AccentCorner.CornerRadius = UDim.new(1, 0)
     AccentCorner.Parent = Accent
 
-    --// Title spacing: 24px left, 12px top, 28px tall — subtitle sits 39px top (3px gap below title baseline)
     local Title = Instance.new("TextLabel")
-    Title.Name = "Title"
-    Title.Size = UDim2.new(1, -120, 0, 28)
-    Title.Position = UDim2.fromOffset(24, 12)
+    Title.Size = UDim2.new(1, -100, 0, 24)
+    Title.Position = UDim2.fromOffset(20, 9)
     Title.BackgroundTransparency = 1
     Title.Text = "Blackout.cc"
     Title.TextColor3 = WHITE
-    Title.TextSize = 21
+    Title.TextSize = 18
     Title.Font = Enum.Font.GothamBold
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.ZIndex = 6
     Title.Parent = Top
 
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Name = "Subtitle"
-    Subtitle.Size = UDim2.new(1, -120, 0, 18)
-    Subtitle.Position = UDim2.fromOffset(25, 39)
+    Subtitle.Size = UDim2.new(1, -100, 0, 16)
+    Subtitle.Position = UDim2.fromOffset(21, 32)
     Subtitle.BackgroundTransparency = 1
     Subtitle.Text = "Made by confess"
     Subtitle.TextColor3 = GRAY
-    Subtitle.TextSize = 11
+    Subtitle.TextSize = 10
     Subtitle.Font = Enum.Font.Gotham
     Subtitle.TextXAlignment = Enum.TextXAlignment.Left
     Subtitle.ZIndex = 6
     Subtitle.Parent = Top
 
     local Close = Instance.new("TextButton")
-    Close.Name = "Close"
-    Close.Size = UDim2.fromOffset(36, 34)
-    Close.Position = UDim2.new(1, -52, 0, 15)
+    Close.Size = UDim2.fromOffset(30, 28)
+    Close.Position = UDim2.new(1, -44, 0, 12)
     Close.BackgroundColor3 = WHITE
     Close.BorderSizePixel = 0
     Close.Text = "×"
     Close.TextColor3 = BLACK
-    Close.TextSize = 20
+    Close.TextSize = 18
     Close.Font = Enum.Font.GothamBold
     Close.AutoButtonColor = false
     Close.ZIndex = 7
     Close.Parent = Top
 
     local CloseCorner = Instance.new("UICorner")
-    CloseCorner.CornerRadius = UDim.new(0, 9)
+    CloseCorner.CornerRadius = UDim.new(0, 8)
     CloseCorner.Parent = Close
 
-    Close.MouseEnter:Connect(function()
-        Close.BackgroundColor3 = Color3.fromRGB(215, 215, 215)
-    end)
-    Close.MouseLeave:Connect(function()
-        Close.BackgroundColor3 = WHITE
-    end)
-    Close.MouseButton1Click:Connect(function()
-        self:HideMenu()
-    end)
+    Close.MouseEnter:Connect(function() Close.BackgroundColor3 = Color3.fromRGB(215, 215, 215) end)
+    Close.MouseLeave:Connect(function() Close.BackgroundColor3 = WHITE end)
+    Close.MouseButton1Click:Connect(function() self:HideMenu() end)
 
+    --// Sidebar
     local Sidebar = Instance.new("Frame")
     Sidebar.Name = "Sidebar"
-    Sidebar.Size = UDim2.fromOffset(180, 408)
-    Sidebar.Position = UDim2.fromOffset(14, 82)
+    Sidebar.Size = UDim2.fromOffset(160, 356)
+    Sidebar.Position = UDim2.fromOffset(12, 70)
     Sidebar.BackgroundColor3 = BLACK
     Sidebar.BorderSizePixel = 0
     Sidebar.ZIndex = 2
     Sidebar.Parent = Main
 
     local SidebarCorner = Instance.new("UICorner")
-    SidebarCorner.CornerRadius = UDim.new(0, 12)
+    SidebarCorner.CornerRadius = UDim.new(0, 10)
     SidebarCorner.Parent = Sidebar
 
     local SidebarStroke = Instance.new("UIStroke")
@@ -255,52 +230,51 @@ function Gui:Init()
     SidebarStroke.Parent = Sidebar
 
     local SidebarPadding = Instance.new("UIPadding")
-    SidebarPadding.PaddingTop = UDim.new(0, 12)
-    SidebarPadding.PaddingLeft = UDim.new(0, 12)
-    SidebarPadding.PaddingRight = UDim.new(0, 12)
-    SidebarPadding.PaddingBottom = UDim.new(0, 12)
+    SidebarPadding.PaddingTop = UDim.new(0, 10)
+    SidebarPadding.PaddingLeft = UDim.new(0, 10)
+    SidebarPadding.PaddingRight = UDim.new(0, 10)
+    SidebarPadding.PaddingBottom = UDim.new(0, 10)
     SidebarPadding.Parent = Sidebar
 
     local TabLayout = Instance.new("UIListLayout")
-    TabLayout.Padding = UDim.new(0, 4)
+    TabLayout.Padding = UDim.new(0, 3)
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     TabLayout.Parent = Sidebar
 
+    --// Content
     local Content = Instance.new("Frame")
     Content.Name = "Content"
-    Content.Size = UDim2.new(1, -220, 1, -90)
-    Content.Position = UDim2.fromOffset(210, 82)
+    Content.Size = UDim2.new(1, -196, 1, -78)
+    Content.Position = UDim2.fromOffset(184, 70)
     Content.BackgroundTransparency = 1
     Content.ZIndex = 2
     Content.Parent = Main
 
-    --// Content title spacing: 30px tall title, subtitle at 29px (tight by design, 1px overlap of bounding boxes but visually clean)
     local ContentTitle = Instance.new("TextLabel")
-    ContentTitle.Name = "ContentTitle"
-    ContentTitle.Size = UDim2.new(1, 0, 0, 30)
+    ContentTitle.Size = UDim2.new(1, 0, 0, 26)
     ContentTitle.Position = UDim2.fromOffset(0, 0)
     ContentTitle.BackgroundTransparency = 1
     ContentTitle.Text = "Combat"
     ContentTitle.TextColor3 = WHITE
-    ContentTitle.TextSize = 22
+    ContentTitle.TextSize = 19
     ContentTitle.Font = Enum.Font.GothamBold
     ContentTitle.TextXAlignment = Enum.TextXAlignment.Left
     ContentTitle.ZIndex = 3
     ContentTitle.Parent = Content
 
     local ContentSubtitle = Instance.new("TextLabel")
-    ContentSubtitle.Name = "ContentSubtitle"
-    ContentSubtitle.Size = UDim2.new(1, 0, 0, 20)
-    ContentSubtitle.Position = UDim2.fromOffset(0, 29)
+    ContentSubtitle.Size = UDim2.new(1, 0, 0, 16)
+    ContentSubtitle.Position = UDim2.fromOffset(0, 25)
     ContentSubtitle.BackgroundTransparency = 1
     ContentSubtitle.Text = "Configure your combat settings."
     ContentSubtitle.TextColor3 = GRAY
-    ContentSubtitle.TextSize = 12
+    ContentSubtitle.TextSize = 11
     ContentSubtitle.Font = Enum.Font.Gotham
     ContentSubtitle.TextXAlignment = Enum.TextXAlignment.Left
     ContentSubtitle.ZIndex = 3
     ContentSubtitle.Parent = Content
 
+    --// Dragging
     local Dragging = false
     local DragStart
     local StartPosition
@@ -310,7 +284,6 @@ function Gui:Init()
         Dragging = true
         DragStart = input.Position
         StartPosition = Main.Position
-
         local connection
         connection = input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
@@ -333,7 +306,6 @@ function Gui:Init()
 
     self.ScreenGui = ScreenGui
     self.Main = Main
-    self.Background = Background
     self.Content = Content
     self.ContentTitle = ContentTitle
     self.ContentSubtitle = ContentSubtitle
@@ -344,7 +316,9 @@ function Gui:Init()
     self.CurrentTab = nil
     self.TabButtons = {}
 
+    --// ═══════════ FIXED TOGGLE — checks key BEFORE processed ═══════════
     UserInputService.InputBegan:Connect(function(input, processed)
+        --// Keybind capture mode
         if WaitingForKey then
             if input.UserInputType == Enum.UserInputType.Keyboard then
                 if input.KeyCode ~= Enum.KeyCode.Unknown then
@@ -363,11 +337,13 @@ function Gui:Init()
             return
         end
 
-        if processed then return end
-        if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-        if input.KeyCode == ToggleKey then
+        --// Toggle check FIRST — before processed check so RightShift works in-game
+        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == ToggleKey then
             if MenuOpen then self:HideMenu() else self:ShowMenu() end
+            return
         end
+
+        --// (processed check removed from blocking the toggle — game can process it too, we don't care)
     end)
 
     print("[ENI] Blackout GUI initialized")
@@ -378,22 +354,18 @@ function Gui:HideMenu()
     if Animating or not MenuOpen then return end
     Animating = true
     MenuOpen = false
-
     self.SavedPosition = self.Main.Position
 
-    local closeSize = UDim2.fromOffset(self.OriginalSize.X.Offset - 60, self.OriginalSize.Y.Offset - 40)
+    local closeSize = UDim2.fromOffset(self.OriginalSize.X.Offset - 50, self.OriginalSize.Y.Offset - 35)
     local closePos = UDim2.new(
-        self.SavedPosition.X.Scale, self.SavedPosition.X.Offset + 30,
-        self.SavedPosition.Y.Scale, self.SavedPosition.Y.Offset + 20
+        self.SavedPosition.X.Scale, self.SavedPosition.X.Offset + 25,
+        self.SavedPosition.Y.Scale, self.SavedPosition.Y.Offset + 18
     )
 
     local tween = TweenService:Create(self.Main, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-        Size = closeSize,
-        Position = closePos,
-        BackgroundTransparency = 1
+        Size = closeSize, Position = closePos, BackgroundTransparency = 1
     })
     tween:Play()
-
     tween.Completed:Connect(function()
         self.Main.Visible = false
         self.Main.Size = self.OriginalSize
@@ -407,22 +379,18 @@ function Gui:ShowMenu()
     if Animating or MenuOpen then return end
     Animating = true
     MenuOpen = true
-
     self.Main.Visible = true
-    self.Main.Size = UDim2.fromOffset(self.OriginalSize.X.Offset - 60, self.OriginalSize.Y.Offset - 40)
+    self.Main.Size = UDim2.fromOffset(self.OriginalSize.X.Offset - 50, self.OriginalSize.Y.Offset - 35)
     self.Main.Position = UDim2.new(
-        self.SavedPosition.X.Scale, self.SavedPosition.X.Offset + 30,
-        self.SavedPosition.Y.Scale, self.SavedPosition.Y.Offset + 20
+        self.SavedPosition.X.Scale, self.SavedPosition.X.Offset + 25,
+        self.SavedPosition.Y.Scale, self.SavedPosition.Y.Offset + 18
     )
     self.Main.BackgroundTransparency = 1
 
     local tween = TweenService:Create(self.Main, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-        Size = self.OriginalSize,
-        Position = self.SavedPosition,
-        BackgroundTransparency = 0
+        Size = self.OriginalSize, Position = self.SavedPosition, BackgroundTransparency = 0
     })
     tween:Play()
-
     tween.Completed:Connect(function()
         self.Main.Position = self.SavedPosition
         self.Main.Size = self.OriginalSize
@@ -430,52 +398,44 @@ function Gui:ShowMenu()
     end)
 end
 
---// FIXED CreateTab: TextLabel child + fixed indicator slot — no overlap
+--// FIXED CreateTab — no overlap
 function Gui:CreateTab(name, description)
     description = description or "Configure your " .. name:lower() .. " settings."
-
     local index = #self.Tabs + 1
 
     local Button = Instance.new("TextButton")
     Button.Name = name:gsub("%s+", "")
-    Button.Size = UDim2.new(1, 0, 0, 56)
+    Button.Size = UDim2.new(1, 0, 0, 44)
     Button.LayoutOrder = index
     Button.BackgroundColor3 = BLACK
     Button.BorderSizePixel = 0
     Button.Text = ""
-    Button.TextColor3 = Color3.fromRGB(165, 165, 165)
-    Button.TextSize = 14
-    Button.Font = Enum.Font.GothamMedium
-    Button.TextXAlignment = Enum.TextXAlignment.Left
     Button.AutoButtonColor = false
     Button.ClipsDescendants = true
     Button.ZIndex = 3
     Button.Parent = self.Sidebar
 
     local ButtonCorner = Instance.new("UICorner")
-    ButtonCorner.CornerRadius = UDim.new(0, 9)
+    ButtonCorner.CornerRadius = UDim.new(0, 8)
     ButtonCorner.Parent = Button
 
-    --// TextLabel child: independent bounds, never overlaps indicator
     local Text = Instance.new("TextLabel")
     Text.Name = "TabText"
-    Text.Size = UDim2.new(1, -30, 1, 0)
-    Text.Position = UDim2.fromOffset(17, 0)
+    Text.Size = UDim2.new(1, -28, 1, 0)
+    Text.Position = UDim2.fromOffset(15, 0)
     Text.BackgroundTransparency = 1
     Text.Text = name
     Text.TextColor3 = Color3.fromRGB(165, 165, 165)
-    Text.TextSize = 14
+    Text.TextSize = 13
     Text.Font = Enum.Font.GothamMedium
     Text.TextXAlignment = Enum.TextXAlignment.Left
     Text.TextTruncate = Enum.TextTruncate.AtEnd
     Text.ZIndex = 4
     Text.Parent = Button
 
-    --// Indicator: fixed left slot, clear of text
     local Indicator = Instance.new("Frame")
-    Indicator.Name = "Indicator"
-    Indicator.Size = UDim2.fromOffset(4, 22)
-    Indicator.Position = UDim2.new(0, 6, 0.5, -11)
+    Indicator.Size = UDim2.fromOffset(3, 18)
+    Indicator.Position = UDim2.new(0, 5, 0.5, -9)
     Indicator.BackgroundColor3 = RED_BRIGHT
     Indicator.BorderSizePixel = 0
     Indicator.Visible = false
@@ -491,12 +451,7 @@ function Gui:CreateTab(name, description)
     ButtonStroke.Transparency = 1
     ButtonStroke.Parent = Button
 
-    self.TabButtons[name] = {
-        Button = Button,
-        Text = Text,
-        Indicator = Indicator,
-        Stroke = ButtonStroke
-    }
+    self.TabButtons[name] = { Button = Button, Text = Text, Indicator = Indicator, Stroke = ButtonStroke }
 
     Button.MouseEnter:Connect(function()
         if self.CurrentTab ~= name then
@@ -510,28 +465,17 @@ function Gui:CreateTab(name, description)
             Text.TextColor3 = Color3.fromRGB(165, 165, 165)
         end
     end)
+    Button.MouseButton1Click:Connect(function() self:SwitchTab(name) end)
 
-    Button.MouseButton1Click:Connect(function()
-        self:SwitchTab(name)
-    end)
-
-    local tabData = {
-        Name = name,
-        Description = description,
-        Elements = {}
-    }
+    local tabData = { Name = name, Description = description, Elements = {} }
     table.insert(self.Tabs, tabData)
 
-    if #self.Tabs == 1 then
-        self:SwitchTab(name)
-    end
-
+    if #self.Tabs == 1 then self:SwitchTab(name) end
     return tabData
 end
 
 function Gui:SwitchTab(name)
     self.CurrentTab = name
-
     for tabName, data in pairs(self.TabButtons) do
         if tabName == name then
             data.Button.BackgroundColor3 = SELECTED
@@ -558,9 +502,7 @@ function Gui:SwitchTab(name)
     end
 
     local tab = self:GetTab(name)
-    if tab and tab.Rebuild then
-        tab.Rebuild(self)
-    end
+    if tab and tab.Rebuild then tab.Rebuild(self) end
 end
 
 function Gui:GetTab(name)
@@ -579,20 +521,18 @@ end
 
 function Gui:SetTabRebuild(name, callback)
     local tab = self:GetTab(name)
-    if tab then
-        tab.Rebuild = callback
-    end
+    if tab then tab.Rebuild = callback end
 end
 
---// Consistent scrollable content wrapper
+--// Scroll content — starts at y=48 (tight under subtitle)
 function Gui:CreateScrollContent()
     local ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "TabScroll"
-    ScrollFrame.Size = UDim2.new(1, 0, 1, -60)
-    ScrollFrame.Position = UDim2.fromOffset(0, 60)
+    ScrollFrame.Size = UDim2.new(1, 0, 1, -48)
+    ScrollFrame.Position = UDim2.fromOffset(0, 48)
     ScrollFrame.BackgroundTransparency = 1
     ScrollFrame.BorderSizePixel = 0
-    ScrollFrame.ScrollBarThickness = 3
+    ScrollFrame.ScrollBarThickness = 2
     ScrollFrame.ScrollBarImageColor3 = RED_BRIGHT
     ScrollFrame.ScrollBarImageTransparency = 0.6
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -601,78 +541,77 @@ function Gui:CreateScrollContent()
     ScrollFrame.Parent = self.Content
 
     local Padding = Instance.new("UIPadding")
-    Padding.PaddingTop = UDim.new(0, 8)
-    Padding.PaddingLeft = UDim.new(0, 6)
-    Padding.PaddingRight = UDim.new(0, 10)
-    Padding.PaddingBottom = UDim.new(0, 20)
+    Padding.PaddingTop = UDim.new(0, 4)
+    Padding.PaddingLeft = UDim.new(0, 2)
+    Padding.PaddingRight = UDim.new(0, 6)
+    Padding.PaddingBottom = UDim.new(0, 10)
     Padding.Parent = ScrollFrame
 
     return ScrollFrame
 end
 
---// Title spacing: section label 25px tall, divider at +33, next element at +45 — clean 12px rhythm
+--// ═══════════ TIGHT-SPACED ELEMENTS ═══════════
+--// Section: 20px label, divider at +24, next at +34
 function Gui:CreateSection(text, y)
     y = y or 0
-
     local Section = Instance.new("TextLabel")
-    Section.Name = "Section"
-    Section.Size = UDim2.new(1, 0, 0, 25)
+    Section.Size = UDim2.new(1, 0, 0, 20)
     Section.Position = UDim2.fromOffset(0, y)
     Section.BackgroundTransparency = 1
     Section.Text = text
     Section.TextColor3 = WHITE
-    Section.TextSize = 15
+    Section.TextSize = 13
     Section.Font = Enum.Font.GothamBold
     Section.TextXAlignment = Enum.TextXAlignment.Left
     Section.ZIndex = 3
     Section.Parent = self.Content
 
     local Divider = Instance.new("Frame")
-    Divider.Name = "Divider"
     Divider.Size = UDim2.new(1, 0, 0, 1)
-    Divider.Position = UDim2.fromOffset(0, y + 33)
+    Divider.Position = UDim2.fromOffset(0, y + 24)
     Divider.BackgroundColor3 = Color3.fromRGB(65, 30, 31)
     Divider.BorderSizePixel = 0
     Divider.ZIndex = 3
     Divider.Parent = self.Content
 
-    return y + 45
+    return y + 34
 end
 
+--// Toggle: 32px tall, returns +38
 function Gui:CreateToggle(label, default, callback, y)
     local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 32)
     ToggleFrame.Position = UDim2.fromOffset(0, y)
     ToggleFrame.BackgroundTransparency = 1
     ToggleFrame.ZIndex = 3
     ToggleFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -70, 0, 40)
+    Label.Size = UDim2.new(1, -60, 0, 32)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
-    Label.TextSize = 14
+    Label.TextSize = 13
     Label.Font = Enum.Font.GothamMedium
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.ZIndex = 4
     Label.Parent = ToggleFrame
 
     local ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Size = UDim2.fromOffset(50, 26)
-    ToggleBtn.Position = UDim2.new(1, -55, 0, 7)
+    ToggleBtn.Size = UDim2.fromOffset(42, 22)
+    ToggleBtn.Position = UDim2.new(1, -46, 0, 5)
     ToggleBtn.BackgroundColor3 = default and RED_BRIGHT or DARK_PANEL
     ToggleBtn.BorderSizePixel = 0
     ToggleBtn.Text = default and "ON" or "OFF"
     ToggleBtn.TextColor3 = default and WHITE or GRAY
-    ToggleBtn.TextSize = 11
+    ToggleBtn.TextSize = 10
     ToggleBtn.Font = Enum.Font.GothamBold
     ToggleBtn.AutoButtonColor = false
     ToggleBtn.ZIndex = 4
     ToggleBtn.Parent = ToggleFrame
 
     local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(0, 6)
+    ToggleCorner.CornerRadius = UDim.new(0, 5)
     ToggleCorner.Parent = ToggleBtn
 
     local ToggleStroke = Instance.new("UIStroke")
@@ -683,20 +622,11 @@ function Gui:CreateToggle(label, default, callback, y)
     local State = default
 
     ToggleBtn.MouseEnter:Connect(function()
-        if State then
-            ToggleBtn.BackgroundColor3 = Color3.fromRGB(215, 40, 45)
-        else
-            ToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        end
+        ToggleBtn.BackgroundColor3 = State and Color3.fromRGB(215, 40, 45) or Color3.fromRGB(25, 25, 25)
     end)
     ToggleBtn.MouseLeave:Connect(function()
-        if State then
-            ToggleBtn.BackgroundColor3 = RED_BRIGHT
-        else
-            ToggleBtn.BackgroundColor3 = DARK_PANEL
-        end
+        ToggleBtn.BackgroundColor3 = State and RED_BRIGHT or DARK_PANEL
     end)
-
     ToggleBtn.MouseButton1Click:Connect(function()
         State = not State
         ToggleBtn.BackgroundColor3 = State and RED_BRIGHT or DARK_PANEL
@@ -706,43 +636,44 @@ function Gui:CreateToggle(label, default, callback, y)
         if callback then callback(State) end
     end)
 
-    return y + 50
+    return y + 38
 end
 
+--// Slider: 44px tall, returns +50
 function Gui:CreateSlider(label, min, max, default, callback, y)
     local SliderFrame = Instance.new("Frame")
-    SliderFrame.Size = UDim2.new(1, 0, 0, 55)
+    SliderFrame.Size = UDim2.new(1, 0, 0, 44)
     SliderFrame.Position = UDim2.fromOffset(0, y)
     SliderFrame.BackgroundTransparency = 1
     SliderFrame.ZIndex = 3
     SliderFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -60, 0, 22)
+    Label.Size = UDim2.new(1, -50, 0, 18)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
-    Label.TextSize = 14
+    Label.TextSize = 13
     Label.Font = Enum.Font.GothamMedium
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.ZIndex = 4
     Label.Parent = SliderFrame
 
     local ValueText = Instance.new("TextLabel")
-    ValueText.Size = UDim2.fromOffset(50, 22)
-    ValueText.Position = UDim2.new(1, -50, 0, 0)
+    ValueText.Size = UDim2.fromOffset(44, 18)
+    ValueText.Position = UDim2.new(1, -44, 0, 0)
     ValueText.BackgroundTransparency = 1
     ValueText.Text = tostring(default)
     ValueText.TextColor3 = RED_BRIGHT
-    ValueText.TextSize = 13
+    ValueText.TextSize = 12
     ValueText.Font = Enum.Font.GothamBold
     ValueText.TextXAlignment = Enum.TextXAlignment.Right
     ValueText.ZIndex = 4
     ValueText.Parent = SliderFrame
 
     local Track = Instance.new("Frame")
-    Track.Size = UDim2.new(1, -10, 0, 4)
-    Track.Position = UDim2.fromOffset(5, 38)
+    Track.Size = UDim2.new(1, -8, 0, 3)
+    Track.Position = UDim2.fromOffset(4, 30)
     Track.BackgroundColor3 = DARK_PANEL
     Track.BorderSizePixel = 0
     Track.ZIndex = 4
@@ -766,8 +697,8 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     FillCorner.Parent = Fill
 
     local Knob = Instance.new("Frame")
-    Knob.Size = UDim2.fromOffset(14, 14)
-    Knob.Position = UDim2.new(startPos, -7, 0.5, -7)
+    Knob.Size = UDim2.fromOffset(12, 12)
+    Knob.Position = UDim2.new(startPos, -6, 0.5, -6)
     Knob.BackgroundColor3 = WHITE
     Knob.BorderSizePixel = 0
     Knob.ZIndex = 5
@@ -783,40 +714,31 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
         local pos = math.clamp((input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
         local value = math.floor(min + (pos * range))
         Fill.Size = UDim2.new(pos, 0, 1, 0)
-        Knob.Position = UDim2.new(pos, -7, 0.5, -7)
+        Knob.Position = UDim2.new(pos, -6, 0.5, -6)
         ValueText.Text = tostring(value)
         if callback then callback(value) end
-        return value
     end
 
     Knob.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            Dragging = true
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = true end
     end)
     Track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            Dragging = true
-            update(input)
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = true update(input) end
     end)
     UserInputService.InputChanged:Connect(function(input)
-        if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            update(input)
-        end
+        if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then update(input) end
     end)
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            Dragging = false
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end
     end)
 
-    return y + 65
+    return y + 50
 end
 
+--// Dropdown: 32px tall, returns +38
 function Gui:CreateDropdown(label, options, default, callback, y)
     local DropFrame = Instance.new("Frame")
-    DropFrame.Size = UDim2.new(1, 0, 0, 40)
+    DropFrame.Size = UDim2.new(1, 0, 0, 32)
     DropFrame.Position = UDim2.fromOffset(0, y)
     DropFrame.BackgroundTransparency = 1
     DropFrame.ZIndex = 3
@@ -827,27 +749,27 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     Label.BackgroundTransparency = 1
     Label.Text = label
     Label.TextColor3 = LIGHT
-    Label.TextSize = 14
+    Label.TextSize = 13
     Label.Font = Enum.Font.GothamMedium
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.ZIndex = 4
     Label.Parent = DropFrame
 
     local DropBtn = Instance.new("TextButton")
-    DropBtn.Size = UDim2.fromOffset(120, 30)
-    DropBtn.Position = UDim2.new(1, -125, 0, 5)
+    DropBtn.Size = UDim2.fromOffset(100, 24)
+    DropBtn.Position = UDim2.new(1, -104, 0, 4)
     DropBtn.BackgroundColor3 = DARK_PANEL
     DropBtn.BorderSizePixel = 0
     DropBtn.Text = default or options[1]
     DropBtn.TextColor3 = WHITE
-    DropBtn.TextSize = 12
+    DropBtn.TextSize = 11
     DropBtn.Font = Enum.Font.GothamMedium
     DropBtn.AutoButtonColor = false
     DropBtn.ZIndex = 4
     DropBtn.Parent = DropFrame
 
     local DropCorner = Instance.new("UICorner")
-    DropCorner.CornerRadius = UDim.new(0, 6)
+    DropCorner.CornerRadius = UDim.new(0, 5)
     DropCorner.Parent = DropBtn
 
     local DropStroke = Instance.new("UIStroke")
@@ -857,13 +779,8 @@ function Gui:CreateDropdown(label, options, default, callback, y)
 
     local selected = default or options[1]
 
-    DropBtn.MouseEnter:Connect(function()
-        DropBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    end)
-    DropBtn.MouseLeave:Connect(function()
-        DropBtn.BackgroundColor3 = DARK_PANEL
-    end)
-
+    DropBtn.MouseEnter:Connect(function() DropBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25) end)
+    DropBtn.MouseLeave:Connect(function() DropBtn.BackgroundColor3 = DARK_PANEL end)
     DropBtn.MouseButton1Click:Connect(function()
         local currentIdx = 1
         for i, opt in ipairs(options) do
@@ -874,25 +791,26 @@ function Gui:CreateDropdown(label, options, default, callback, y)
         if callback then callback(selected) end
     end)
 
-    return y + 50
+    return y + 38
 end
 
+--// Button: 30px tall, returns +36
 function Gui:CreateButton(label, callback, y)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 36)
+    Btn.Size = UDim2.new(1, 0, 0, 30)
     Btn.Position = UDim2.fromOffset(0, y)
     Btn.BackgroundColor3 = DARK_PANEL
     Btn.BorderSizePixel = 0
     Btn.Text = label
     Btn.TextColor3 = WHITE
-    Btn.TextSize = 13
+    Btn.TextSize = 12
     Btn.Font = Enum.Font.GothamBold
     Btn.AutoButtonColor = false
     Btn.ZIndex = 3
     Btn.Parent = self.Content
 
     local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 8)
+    BtnCorner.CornerRadius = UDim.new(0, 6)
     BtnCorner.Parent = Btn
 
     local BtnStroke = Instance.new("UIStroke")
@@ -908,34 +826,32 @@ function Gui:CreateButton(label, callback, y)
         Btn.BackgroundColor3 = DARK_PANEL
         BtnStroke.Color = BORDER
     end)
-    Btn.MouseButton1Click:Connect(function()
-        if callback then callback() end
-    end)
+    Btn.MouseButton1Click:Connect(function() if callback then callback() end end)
 
-    return y + 46
+    return y + 36
 end
 
+--// Keybind setting: compact 54px total
 function Gui:CreateKeybindSetting(y)
     local KeyLabel = Instance.new("TextLabel")
-    KeyLabel.Name = "KeybindLabel"
-    KeyLabel.Size = UDim2.new(1, -150, 0, 35)
+    KeyLabel.Size = UDim2.new(1, -130, 0, 28)
     KeyLabel.Position = UDim2.fromOffset(0, y)
     KeyLabel.BackgroundTransparency = 1
     KeyLabel.Text = "GUI Toggle Keybind"
     KeyLabel.TextColor3 = LIGHT
-    KeyLabel.TextSize = 14
+    KeyLabel.TextSize = 13
     KeyLabel.Font = Enum.Font.GothamMedium
     KeyLabel.TextXAlignment = Enum.TextXAlignment.Left
     KeyLabel.ZIndex = 3
     KeyLabel.Parent = self.Content
 
     local KeyDescription = Instance.new("TextLabel")
-    KeyDescription.Size = UDim2.new(1, -150, 0, 20)
-    KeyDescription.Position = UDim2.fromOffset(0, y + 26)
+    KeyDescription.Size = UDim2.new(1, -130, 0, 14)
+    KeyDescription.Position = UDim2.fromOffset(0, y + 21)
     KeyDescription.BackgroundTransparency = 1
     KeyDescription.Text = "Press this key to show or hide the GUI."
     KeyDescription.TextColor3 = GRAY
-    KeyDescription.TextSize = 11
+    KeyDescription.TextSize = 10
     KeyDescription.Font = Enum.Font.Gotham
     KeyDescription.TextXAlignment = Enum.TextXAlignment.Left
     KeyDescription.ZIndex = 3
@@ -943,20 +859,20 @@ function Gui:CreateKeybindSetting(y)
 
     local Keybind = Instance.new("TextButton")
     Keybind.Name = "Keybind"
-    Keybind.Size = UDim2.fromOffset(120, 38)
-    Keybind.Position = UDim2.new(1, -120, 0, y)
+    Keybind.Size = UDim2.fromOffset(100, 30)
+    Keybind.Position = UDim2.new(1, -100, 0, y)
     Keybind.BackgroundColor3 = DARK_PANEL
     Keybind.BorderSizePixel = 0
     Keybind.Text = ToggleKey.Name
     Keybind.TextColor3 = WHITE
-    Keybind.TextSize = 13
+    Keybind.TextSize = 12
     Keybind.Font = Enum.Font.GothamMedium
     Keybind.AutoButtonColor = false
     Keybind.ZIndex = 3
     Keybind.Parent = self.Content
 
     local KeyCorner = Instance.new("UICorner")
-    KeyCorner.CornerRadius = UDim.new(0, 9)
+    KeyCorner.CornerRadius = UDim.new(0, 7)
     KeyCorner.Parent = Keybind
 
     local KeyStroke = Instance.new("UIStroke")
@@ -965,16 +881,10 @@ function Gui:CreateKeybindSetting(y)
     KeyStroke.Parent = Keybind
 
     Keybind.MouseEnter:Connect(function()
-        if not WaitingForKey then
-            Keybind.BackgroundColor3 = SELECTED
-            KeyStroke.Color = RED
-        end
+        if not WaitingForKey then Keybind.BackgroundColor3 = SELECTED KeyStroke.Color = RED end
     end)
     Keybind.MouseLeave:Connect(function()
-        if not WaitingForKey then
-            Keybind.BackgroundColor3 = DARK_PANEL
-            KeyStroke.Color = BORDER
-        end
+        if not WaitingForKey then Keybind.BackgroundColor3 = DARK_PANEL KeyStroke.Color = BORDER end
     end)
     Keybind.MouseButton1Click:Connect(function()
         if WaitingForKey then return end
@@ -985,7 +895,7 @@ function Gui:CreateKeybindSetting(y)
         KeyStroke.Color = RED_BRIGHT
     end)
 
-    return y + 70
+    return y + 54
 end
 
 return Gui
