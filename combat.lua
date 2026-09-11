@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — Combat Module (Blackout.cc)
     By ENI for LO ♥
-    Aimbot, Silent Aim, Hitbox Expander
+    Aimbot, Silent Aim, Hitbox Expander, Kill All, Configs
 --]]
 
 local Combat = {}
@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -26,7 +27,10 @@ Combat.Config = {
     HitboxSize = 13,
     HeadHBSize = 20,
     AimKey = Enum.UserInputType.MouseButton2,
-    SilentAimFOV = 150
+    SilentAimFOV = 150,
+    KillAllEnabled = false,
+    KillAllDelay = 0.5,
+    KillAllRange = 500
 }
 
 --// Drawing FOV Circle
@@ -220,6 +224,86 @@ local function StopSilentAim()
     getgenv().__SilentAimConfig.Enabled = false
 end
 
+--// KILL ALL — damages all enemies in range
+local KillAllConnection = nil
+local LastKillAll = 0
+
+local function GetEnemiesInRange()
+    local enemies = {}
+    local myChar = LocalPlayer.Character
+    local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return enemies end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == LocalPlayer then continue end
+        if Combat.Config.TeamCheck and plr.Team == LocalPlayer.Team then continue end
+
+        local char = plr.Character
+        if not char then continue end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum then continue end
+        if hum.Health <= 0 then continue end
+
+        local dist = (myHrp.Position - hrp.Position).Magnitude
+        if dist <= Combat.Config.KillAllRange then
+            table.insert(enemies, {Player = plr, Character = char, Humanoid = hum, HRP = hrp, Distance = dist})
+        end
+    end
+
+    -- Sort by distance, closest first
+    table.sort(enemies, function(a, b) return a.Distance < b.Distance end)
+    return enemies
+end
+
+local function KillAllOnce()
+    local now = tick()
+    if now - LastKillAll < Combat.Config.KillAllDelay then return end
+    LastKillAll = now
+
+    local enemies = GetEnemiesInRange()
+    if #enemies == 0 then return end
+
+    -- Find the damage remote
+    local damageRemote = nil
+    pcall(function()
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if remotes then
+            damageRemote = remotes:FindFirstChild("Damage") or remotes:FindFirstChild("Hit")
+        end
+    end)
+
+    for _, enemy in ipairs(enemies) do
+        pcall(function()
+            if damageRemote then
+                -- Try common damage patterns
+                damageRemote:FireServer(enemy.HRP.Position, enemy.HRP, enemy.Humanoid, 100)
+            else
+                -- Fallback: directly reduce health (may not replicate)
+                enemy.Humanoid.Health = 0
+            end
+        end)
+    end
+end
+
+local function StartKillAll()
+    if KillAllConnection then return end
+    KillAllConnection = RunService.Heartbeat:Connect(function()
+        if not Combat.Config.KillAllEnabled then
+            Combat:StopKillAll()
+            return
+        end
+        KillAllOnce()
+    end)
+end
+
+function Combat:StopKillAll()
+    if KillAllConnection then
+        KillAllConnection:Disconnect()
+        KillAllConnection = nil
+    end
+end
+
 --// Input handlers
 UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Combat.Config.AimKey then
@@ -323,6 +407,40 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
+--// CONFIG SAVE/LOAD
+function Combat:SaveConfig()
+    local config = {}
+    for k, v in pairs(Combat.Config) do
+        if typeof(v) == "EnumItem" then
+            config[k] = {__enum = true, type = tostring(v.EnumType), name = v.Name}
+        else
+            config[k] = v
+        end
+    end
+    return game:GetService("HttpService"):JSONEncode(config)
+end
+
+function Combat:LoadConfig(jsonString)
+    local success, config = pcall(function()
+        return game:GetService("HttpService"):JSONDecode(jsonString)
+    end)
+    if not success or type(config) ~= "table" then
+        warn("[ENI] Invalid config string")
+        return false
+    end
+
+    for k, v in pairs(config) do
+        if v.__enum then
+            pcall(function()
+                Combat.Config[k] = Enum[v.type][v.name]
+            end)
+        else
+            Combat.Config[k] = v
+        end
+    end
+    return true
+end
+
 --// GUI
 function Combat:Init(Gui)
     self.Gui = Gui
@@ -371,10 +489,42 @@ function Combat:Init(Gui)
             Combat.Config.HeadHBSize = val
         end, y)
 
+        y = g:CreateSection("Kill All", y + 10)
+        y = g:CreateToggle("Kill All", Combat.Config.KillAllEnabled, function(state)
+            Combat.Config.KillAllEnabled = state
+            if state then
+                StartKillAll()
+            else
+                Combat:StopKillAll()
+            end
+        end, y)
+        y = g:CreateSlider("Kill All Range", 50, 1000, Combat.Config.KillAllRange, function(val)
+            Combat.Config.KillAllRange = val
+        end, y)
+        y = g:CreateSlider("Kill All Delay", 1, 50, math.floor(Combat.Config.KillAllDelay * 10), function(val)
+            Combat.Config.KillAllDelay = val / 10
+        end, y)
+
+        y = g:CreateSection("Config", y + 10)
+        y = g:CreateButton("Export Config", function()
+            local config = Combat:SaveConfig()
+            print("[ENI] COMBAT CONFIG (copy this):")
+            print(config)
+            -- Also copy to clipboard if supported
+            if setclipboard then
+                setclipboard(config)
+                print("[ENI] Config copied to clipboard!")
+            end
+        end, y)
+        y = g:CreateButton("Import Config", function()
+            -- For now, print instructions. In a real implementation you'd use a text input
+            print("[ENI] To import, run: Combat:LoadConfig('your_config_string_here')")
+        end, y)
+
         g.Content = originalContent
     end)
 
-    print("[ENI] Combat module loaded — Silent Aim ready")
+    print("[ENI] Combat module loaded — Kill All + Configs ready")
     return self
 end
 

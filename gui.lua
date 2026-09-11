@@ -42,7 +42,6 @@ local ToggleKey = Enum.KeyCode.RightShift
 local WaitingForKey = false
 local MenuOpen = true
 local Animating = false
-local Minimized = false
 
 --// ScreenGui
 function Gui:Init()
@@ -189,30 +188,6 @@ function Gui:Init()
     Subtitle.ZIndex = 6
     Subtitle.Parent = Top
 
-    --// MINIMIZE BUTTON
-    local Minimize = Instance.new("TextButton")
-    Minimize.Name = "Minimize"
-    Minimize.Size = UDim2.fromOffset(32, 30)
-    Minimize.Position = UDim2.new(1, -84, 0, 14)
-    Minimize.BackgroundColor3 = DARK_PANEL
-    Minimize.BorderSizePixel = 0
-    Minimize.Text = "—"
-    Minimize.TextColor3 = WHITE
-    Minimize.TextSize = 16
-    Minimize.Font = Enum.Font.GothamBold
-    Minimize.AutoButtonColor = false
-    Minimize.ZIndex = 7
-    Minimize.Parent = Top
-
-    local MinimizeCorner = Instance.new("UICorner")
-    MinimizeCorner.CornerRadius = UDim.new(0, 8)
-    MinimizeCorner.Parent = Minimize
-
-    local MinimizeStroke = Instance.new("UIStroke")
-    MinimizeStroke.Color = BORDER
-    MinimizeStroke.Thickness = 1
-    MinimizeStroke.Parent = Minimize
-
     --// CLOSE BUTTON
     local Close = Instance.new("TextButton")
     Close.Name = "Close"
@@ -235,15 +210,6 @@ function Gui:Init()
     Close.MouseEnter:Connect(function() Close.BackgroundColor3 = Color3.fromRGB(215, 215, 215) end)
     Close.MouseLeave:Connect(function() Close.BackgroundColor3 = WHITE end)
     Close.MouseButton1Click:Connect(function() self:HideMenu() end)
-
-    Minimize.MouseEnter:Connect(function()
-        Minimize.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        MinimizeStroke.Color = RED
-    end)
-    Minimize.MouseLeave:Connect(function()
-        Minimize.BackgroundColor3 = DARK_PANEL
-        MinimizeStroke.Color = BORDER
-    end)
 
     --// Sidebar
     local Sidebar = Instance.new("Frame")
@@ -352,50 +318,6 @@ function Gui:Init()
     self.Tabs = {}
     self.CurrentTab = nil
     self.TabButtons = {}
-
-    --// MINIMIZE FUNCTION
-    local function DoMinimize()
-        if Animating then return end
-        Animating = true
-        Minimized = true
-
-        local tween = TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-            Size = UDim2.fromOffset(OriginalSize.X.Offset, 64)
-        })
-        tween:Play()
-        tween.Completed:Connect(function()
-            Sidebar.Visible = false
-            Content.Visible = false
-            Background.Visible = false
-            Animating = false
-        end)
-    end
-
-    local function DoRestore()
-        if Animating then return end
-        Animating = true
-        Minimized = false
-
-        Sidebar.Visible = true
-        Content.Visible = true
-        Background.Visible = true
-
-        local tween = TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-            Size = OriginalSize
-        })
-        tween:Play()
-        tween.Completed:Connect(function()
-            Animating = false
-        end)
-    end
-
-    Minimize.MouseButton1Click:Connect(function()
-        if Minimized then
-            DoRestore()
-        else
-            DoMinimize()
-        end
-    end)
 
     --// Toggle key
     UserInputService.InputBegan:Connect(function(input, processed)
