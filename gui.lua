@@ -2,7 +2,7 @@
     Arsenal Suite — GUI Framework (Blackout.cc)
     By ENI for LO ♥
     Modular sidebar GUI with animations, drag, keybind capture
-    v2 — Consistent scroll frames, better spacing
+    v3 — Red BG wave effect (top-right → bottom-left), fixed tab text overlap
 --]]
 
 local Gui = {}
@@ -12,6 +12,7 @@ Gui.__index = Gui
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 
 local Player = Players.LocalPlayer
@@ -31,6 +32,14 @@ local WHITE      = Color3.fromRGB(255, 255, 255)
 local LIGHT      = Color3.fromRGB(225, 225, 225)
 local GRAY       = Color3.fromRGB(150, 150, 150)
 local BORDER     = Color3.fromRGB(65, 25, 27)
+
+--// Wave Config (red, background only, top-right → bottom-left)
+local WAVE_COLOR        = Color3.fromRGB(255, 130, 130)
+local WAVE_PEAK_TRANS   = 0.82
+local WAVE_BAND_WIDTH   = 0.28
+local WAVE_DURATION     = 2.4
+local WAVE_PAUSE        = 1.0
+local WAVE_ROTATION     = -45
 
 --// State
 local ToggleKey = Enum.KeyCode.RightShift
@@ -72,6 +81,72 @@ function Gui:Init()
     local SavedPosition = Main.Position
     local OriginalSize = Main.Size
 
+    --// ═══════════ BACKGROUND FRAME + RED WAVE (top-right → bottom-left) ═══════════
+    local Background = Instance.new("Frame")
+    Background.Name = "Background"
+    Background.Size = UDim2.fromScale(1, 1)
+    Background.Position = UDim2.fromScale(0, 0)
+    Background.BackgroundColor3 = BACKGROUND
+    Background.BorderSizePixel = 0
+    Background.ZIndex = 1
+    Background.Parent = Main
+
+    local BgCorner = Instance.new("UICorner")
+    BgCorner.CornerRadius = UDim.new(0, 14)
+    BgCorner.Parent = Background
+
+    local sheen = Instance.new("Frame")
+    sheen.Name = "ENI_WaveSheen"
+    sheen.Size = UDim2.fromScale(1, 1)
+    sheen.Position = UDim2.fromScale(0, 0)
+    sheen.BackgroundColor3 = WAVE_COLOR
+    sheen.BackgroundTransparency = 0
+    sheen.BorderSizePixel = 0
+    sheen.ZIndex = 1
+    sheen.Parent = Background
+
+    local waveGrad = Instance.new("UIGradient")
+    waveGrad.Rotation = WAVE_ROTATION
+    waveGrad.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0.00, 1),
+        NumberSequenceKeypoint.new(math.clamp(0.50 - WAVE_BAND_WIDTH, 0, 1), 1),
+        NumberSequenceKeypoint.new(0.50, WAVE_PEAK_TRANS),
+        NumberSequenceKeypoint.new(math.clamp(0.50 + WAVE_BAND_WIDTH, 0, 1), 1),
+        NumberSequenceKeypoint.new(1.00, 1)
+    })
+    waveGrad.Parent = sheen
+
+    do
+        local offset = 1.5
+        local paused = false
+        local pauseTimer = 0
+        local speed = 3.0 / WAVE_DURATION
+
+        RunService.RenderStepped:Connect(function(dt)
+            if not sheen.Parent then return end
+            if not Main.Visible then return end
+
+            if paused then
+                pauseTimer = pauseTimer - dt
+                if pauseTimer <= 0 then
+                    paused = false
+                    offset = 1.5
+                end
+                return
+            end
+
+            offset = offset - (speed * dt)
+
+            if offset <= -1.5 then
+                paused = true
+                pauseTimer = WAVE_PAUSE
+            end
+
+            waveGrad.Offset = Vector2.new(offset, 0)
+        end)
+    end
+    --// ═══════════════════════════════════════════════════════════════════════════
+
     local Top = Instance.new("Frame")
     Top.Name = "TopBar"
     Top.Size = UDim2.new(1, 0, 0, 70)
@@ -105,6 +180,7 @@ function Gui:Init()
     AccentCorner.CornerRadius = UDim.new(1, 0)
     AccentCorner.Parent = Accent
 
+    --// Title spacing: 24px left, 12px top, 28px tall — subtitle sits 39px top (3px gap below title baseline)
     local Title = Instance.new("TextLabel")
     Title.Name = "Title"
     Title.Size = UDim2.new(1, -120, 0, 28)
@@ -165,6 +241,7 @@ function Gui:Init()
     Sidebar.Position = UDim2.fromOffset(14, 82)
     Sidebar.BackgroundColor3 = BLACK
     Sidebar.BorderSizePixel = 0
+    Sidebar.ZIndex = 2
     Sidebar.Parent = Main
 
     local SidebarCorner = Instance.new("UICorner")
@@ -194,8 +271,10 @@ function Gui:Init()
     Content.Size = UDim2.new(1, -220, 1, -90)
     Content.Position = UDim2.fromOffset(210, 82)
     Content.BackgroundTransparency = 1
+    Content.ZIndex = 2
     Content.Parent = Main
 
+    --// Content title spacing: 30px tall title, subtitle at 29px (tight by design, 1px overlap of bounding boxes but visually clean)
     local ContentTitle = Instance.new("TextLabel")
     ContentTitle.Name = "ContentTitle"
     ContentTitle.Size = UDim2.new(1, 0, 0, 30)
@@ -206,6 +285,7 @@ function Gui:Init()
     ContentTitle.TextSize = 22
     ContentTitle.Font = Enum.Font.GothamBold
     ContentTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ContentTitle.ZIndex = 3
     ContentTitle.Parent = Content
 
     local ContentSubtitle = Instance.new("TextLabel")
@@ -218,6 +298,7 @@ function Gui:Init()
     ContentSubtitle.TextSize = 12
     ContentSubtitle.Font = Enum.Font.Gotham
     ContentSubtitle.TextXAlignment = Enum.TextXAlignment.Left
+    ContentSubtitle.ZIndex = 3
     ContentSubtitle.Parent = Content
 
     local Dragging = false
@@ -252,6 +333,7 @@ function Gui:Init()
 
     self.ScreenGui = ScreenGui
     self.Main = Main
+    self.Background = Background
     self.Content = Content
     self.ContentTitle = ContentTitle
     self.ContentSubtitle = ContentSubtitle
@@ -348,6 +430,7 @@ function Gui:ShowMenu()
     end)
 end
 
+--// FIXED CreateTab: TextLabel child + fixed indicator slot — no overlap
 function Gui:CreateTab(name, description)
     description = description or "Configure your " .. name:lower() .. " settings."
 
@@ -359,26 +442,40 @@ function Gui:CreateTab(name, description)
     Button.LayoutOrder = index
     Button.BackgroundColor3 = BLACK
     Button.BorderSizePixel = 0
-    Button.Text = name
+    Button.Text = ""
     Button.TextColor3 = Color3.fromRGB(165, 165, 165)
     Button.TextSize = 14
     Button.Font = Enum.Font.GothamMedium
     Button.TextXAlignment = Enum.TextXAlignment.Left
     Button.AutoButtonColor = false
+    Button.ClipsDescendants = true
+    Button.ZIndex = 3
     Button.Parent = self.Sidebar
 
     local ButtonCorner = Instance.new("UICorner")
     ButtonCorner.CornerRadius = UDim.new(0, 9)
     ButtonCorner.Parent = Button
 
-    local ButtonPadding = Instance.new("UIPadding")
-    ButtonPadding.PaddingLeft = UDim.new(0, 17)
-    ButtonPadding.Parent = Button
+    --// TextLabel child: independent bounds, never overlaps indicator
+    local Text = Instance.new("TextLabel")
+    Text.Name = "TabText"
+    Text.Size = UDim2.new(1, -30, 1, 0)
+    Text.Position = UDim2.fromOffset(17, 0)
+    Text.BackgroundTransparency = 1
+    Text.Text = name
+    Text.TextColor3 = Color3.fromRGB(165, 165, 165)
+    Text.TextSize = 14
+    Text.Font = Enum.Font.GothamMedium
+    Text.TextXAlignment = Enum.TextXAlignment.Left
+    Text.TextTruncate = Enum.TextTruncate.AtEnd
+    Text.ZIndex = 4
+    Text.Parent = Button
 
+    --// Indicator: fixed left slot, clear of text
     local Indicator = Instance.new("Frame")
     Indicator.Name = "Indicator"
     Indicator.Size = UDim2.fromOffset(4, 22)
-    Indicator.Position = UDim2.new(0, -11, 0.5, -11)
+    Indicator.Position = UDim2.new(0, 6, 0.5, -11)
     Indicator.BackgroundColor3 = RED_BRIGHT
     Indicator.BorderSizePixel = 0
     Indicator.Visible = false
@@ -396,6 +493,7 @@ function Gui:CreateTab(name, description)
 
     self.TabButtons[name] = {
         Button = Button,
+        Text = Text,
         Indicator = Indicator,
         Stroke = ButtonStroke
     }
@@ -403,13 +501,13 @@ function Gui:CreateTab(name, description)
     Button.MouseEnter:Connect(function()
         if self.CurrentTab ~= name then
             Button.BackgroundColor3 = HOVER
-            Button.TextColor3 = WHITE
+            Text.TextColor3 = WHITE
         end
     end)
     Button.MouseLeave:Connect(function()
         if self.CurrentTab ~= name then
             Button.BackgroundColor3 = BLACK
-            Button.TextColor3 = Color3.fromRGB(165, 165, 165)
+            Text.TextColor3 = Color3.fromRGB(165, 165, 165)
         end
     end)
 
@@ -437,13 +535,13 @@ function Gui:SwitchTab(name)
     for tabName, data in pairs(self.TabButtons) do
         if tabName == name then
             data.Button.BackgroundColor3 = SELECTED
-            data.Button.TextColor3 = WHITE
+            data.Text.TextColor3 = WHITE
             data.Indicator.Visible = true
             data.Stroke.Color = RED_BRIGHT
             data.Stroke.Transparency = 0.45
         else
             data.Button.BackgroundColor3 = BLACK
-            data.Button.TextColor3 = Color3.fromRGB(165, 165, 165)
+            data.Text.TextColor3 = Color3.fromRGB(165, 165, 165)
             data.Indicator.Visible = false
             data.Stroke.Color = BLACK
             data.Stroke.Transparency = 1
@@ -486,7 +584,7 @@ function Gui:SetTabRebuild(name, callback)
     end
 end
 
---// NEW: Consistent scrollable content wrapper
+--// Consistent scrollable content wrapper
 function Gui:CreateScrollContent()
     local ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "TabScroll"
@@ -499,6 +597,7 @@ function Gui:CreateScrollContent()
     ScrollFrame.ScrollBarImageTransparency = 0.6
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    ScrollFrame.ZIndex = 3
     ScrollFrame.Parent = self.Content
 
     local Padding = Instance.new("UIPadding")
@@ -511,6 +610,7 @@ function Gui:CreateScrollContent()
     return ScrollFrame
 end
 
+--// Title spacing: section label 25px tall, divider at +33, next element at +45 — clean 12px rhythm
 function Gui:CreateSection(text, y)
     y = y or 0
 
@@ -524,6 +624,7 @@ function Gui:CreateSection(text, y)
     Section.TextSize = 15
     Section.Font = Enum.Font.GothamBold
     Section.TextXAlignment = Enum.TextXAlignment.Left
+    Section.ZIndex = 3
     Section.Parent = self.Content
 
     local Divider = Instance.new("Frame")
@@ -532,6 +633,7 @@ function Gui:CreateSection(text, y)
     Divider.Position = UDim2.fromOffset(0, y + 33)
     Divider.BackgroundColor3 = Color3.fromRGB(65, 30, 31)
     Divider.BorderSizePixel = 0
+    Divider.ZIndex = 3
     Divider.Parent = self.Content
 
     return y + 45
@@ -542,6 +644,7 @@ function Gui:CreateToggle(label, default, callback, y)
     ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
     ToggleFrame.Position = UDim2.fromOffset(0, y)
     ToggleFrame.BackgroundTransparency = 1
+    ToggleFrame.ZIndex = 3
     ToggleFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
@@ -552,6 +655,7 @@ function Gui:CreateToggle(label, default, callback, y)
     Label.TextSize = 14
     Label.Font = Enum.Font.GothamMedium
     Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.ZIndex = 4
     Label.Parent = ToggleFrame
 
     local ToggleBtn = Instance.new("TextButton")
@@ -564,6 +668,7 @@ function Gui:CreateToggle(label, default, callback, y)
     ToggleBtn.TextSize = 11
     ToggleBtn.Font = Enum.Font.GothamBold
     ToggleBtn.AutoButtonColor = false
+    ToggleBtn.ZIndex = 4
     ToggleBtn.Parent = ToggleFrame
 
     local ToggleCorner = Instance.new("UICorner")
@@ -609,6 +714,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     SliderFrame.Size = UDim2.new(1, 0, 0, 55)
     SliderFrame.Position = UDim2.fromOffset(0, y)
     SliderFrame.BackgroundTransparency = 1
+    SliderFrame.ZIndex = 3
     SliderFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
@@ -619,6 +725,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     Label.TextSize = 14
     Label.Font = Enum.Font.GothamMedium
     Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.ZIndex = 4
     Label.Parent = SliderFrame
 
     local ValueText = Instance.new("TextLabel")
@@ -630,6 +737,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     ValueText.TextSize = 13
     ValueText.Font = Enum.Font.GothamBold
     ValueText.TextXAlignment = Enum.TextXAlignment.Right
+    ValueText.ZIndex = 4
     ValueText.Parent = SliderFrame
 
     local Track = Instance.new("Frame")
@@ -637,6 +745,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     Track.Position = UDim2.fromOffset(5, 38)
     Track.BackgroundColor3 = DARK_PANEL
     Track.BorderSizePixel = 0
+    Track.ZIndex = 4
     Track.Parent = SliderFrame
 
     local TrackCorner = Instance.new("UICorner")
@@ -649,6 +758,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     Fill.Size = UDim2.new(startPos, 0, 1, 0)
     Fill.BackgroundColor3 = RED_BRIGHT
     Fill.BorderSizePixel = 0
+    Fill.ZIndex = 5
     Fill.Parent = Track
 
     local FillCorner = Instance.new("UICorner")
@@ -660,6 +770,7 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     Knob.Position = UDim2.new(startPos, -7, 0.5, -7)
     Knob.BackgroundColor3 = WHITE
     Knob.BorderSizePixel = 0
+    Knob.ZIndex = 5
     Knob.Parent = Track
 
     local KnobCorner = Instance.new("UICorner")
@@ -708,6 +819,7 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     DropFrame.Size = UDim2.new(1, 0, 0, 40)
     DropFrame.Position = UDim2.fromOffset(0, y)
     DropFrame.BackgroundTransparency = 1
+    DropFrame.ZIndex = 3
     DropFrame.Parent = self.Content
 
     local Label = Instance.new("TextLabel")
@@ -718,6 +830,7 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     Label.TextSize = 14
     Label.Font = Enum.Font.GothamMedium
     Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.ZIndex = 4
     Label.Parent = DropFrame
 
     local DropBtn = Instance.new("TextButton")
@@ -730,6 +843,7 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     DropBtn.TextSize = 12
     DropBtn.Font = Enum.Font.GothamMedium
     DropBtn.AutoButtonColor = false
+    DropBtn.ZIndex = 4
     DropBtn.Parent = DropFrame
 
     local DropCorner = Instance.new("UICorner")
@@ -774,6 +888,7 @@ function Gui:CreateButton(label, callback, y)
     Btn.TextSize = 13
     Btn.Font = Enum.Font.GothamBold
     Btn.AutoButtonColor = false
+    Btn.ZIndex = 3
     Btn.Parent = self.Content
 
     local BtnCorner = Instance.new("UICorner")
@@ -811,6 +926,7 @@ function Gui:CreateKeybindSetting(y)
     KeyLabel.TextSize = 14
     KeyLabel.Font = Enum.Font.GothamMedium
     KeyLabel.TextXAlignment = Enum.TextXAlignment.Left
+    KeyLabel.ZIndex = 3
     KeyLabel.Parent = self.Content
 
     local KeyDescription = Instance.new("TextLabel")
@@ -822,6 +938,7 @@ function Gui:CreateKeybindSetting(y)
     KeyDescription.TextSize = 11
     KeyDescription.Font = Enum.Font.Gotham
     KeyDescription.TextXAlignment = Enum.TextXAlignment.Left
+    KeyDescription.ZIndex = 3
     KeyDescription.Parent = self.Content
 
     local Keybind = Instance.new("TextButton")
@@ -835,6 +952,7 @@ function Gui:CreateKeybindSetting(y)
     Keybind.TextSize = 13
     Keybind.Font = Enum.Font.GothamMedium
     Keybind.AutoButtonColor = false
+    Keybind.ZIndex = 3
     Keybind.Parent = self.Content
 
     local KeyCorner = Instance.new("UICorner")
