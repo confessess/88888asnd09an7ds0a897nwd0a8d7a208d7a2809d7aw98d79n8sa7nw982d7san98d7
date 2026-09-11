@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — Gun Mods Module (Blackout.cc)
     By ENI for LO ♥
-    No Recoil, No Spread, Rapid Fire, Rainbow Guns
+    No Recoil, No Spread, Rapid Fire, Infinite Ammo, Rainbow Guns
 --]]
 
 local GunMods = {}
@@ -17,6 +17,7 @@ GunMods.Config = {
     NoRecoil = false,
     NoSpread = false,
     RapidFire = false,
+    InfiniteAmmo = false,
     FireRate = 0.03,
     RainbowGuns = false,
     GunTransparency = 0.3,
@@ -46,6 +47,8 @@ local function BuildWeaponCache()
                 WeaponCache[key] = { Obj = weapon, Original = weapon.Value, Type = "firerate" }
             elseif weapon.Name == "Spread" or weapon.Name == "BSpread" or weapon.Name == "Accuracy" or weapon.Name == "BAccuracy" then
                 WeaponCache[key] = { Obj = weapon, Original = weapon.Value, Type = "spread" }
+            elseif weapon.Name == "Auto" then
+                WeaponCache[key] = { Obj = weapon, Original = weapon.Value, Type = "auto" }
             end
         end
     end
@@ -62,16 +65,42 @@ local function ApplyMods()
             if GunMods.Config.RapidFire and data.Type == "firerate" then
                 data.Obj.Value = GunMods.Config.FireRate
             end
+            if GunMods.Config.RapidFire and data.Type == "auto" then
+                data.Obj.Value = true
+            end
             if GunMods.Config.NoSpread and data.Type == "spread" then
-                -- Spread/Accuracy: 0 spread = laser accurate
                 if string.find(data.Obj.Name:lower(), "accuracy") then
-                    data.Obj.Value = 100  -- max accuracy
+                    data.Obj.Value = 100
                 else
-                    data.Obj.Value = 0    -- zero spread
+                    data.Obj.Value = 0
                 end
             end
         else
             WeaponCache[key] = nil
+        end
+    end
+end
+
+local function ApplyInfiniteAmmo()
+    local weapons = ReplicatedStorage:FindFirstChild("Weapons")
+    if not weapons then return end
+
+    for _, w in ipairs(weapons:GetChildren()) do
+        if w:FindFirstChild("FireRate") then
+            if GunMods.Config.InfiniteAmmo then
+                if w:FindFirstChild("Infinite") == nil then
+                    pcall(function()
+                        local f = Instance.new("Folder")
+                        f.Name = "Infinite"
+                        f.Parent = w
+                    end)
+                end
+            else
+                local inf = w:FindFirstChild("Infinite")
+                if inf then
+                    pcall(function() inf:Destroy() end)
+                end
+            end
         end
     end
 end
@@ -96,6 +125,15 @@ local function OnToolEquipped(tool)
         BuildWeaponCache()
         ApplyMods()
     end
+    if GunMods.Config.InfiniteAmmo then
+        pcall(function()
+            if tool:FindFirstChild("Infinite") == nil then
+                local f = Instance.new("Folder")
+                f.Name = "Infinite"
+                f.Parent = tool
+            end
+        end)
+    end
 end
 
 local function OnToolUnequipped()
@@ -115,8 +153,7 @@ local function SetupCharacter(char)
     end)
 end
 
---// ═══════════ RAINBOW GUNS — FIXED ═══════════
---// Now handles MeshParts, UnionOperations, and accessory handles
+--// RAINBOW GUNS
 local RainbowConnection = nil
 local Hue = 0
 local OriginalGunData = {}
@@ -137,7 +174,6 @@ local function CacheOriginalData(tool)
                 Transparency = part.Transparency
             }
         end
-        -- Handle ParticleEmitter colors too (muzzle flash etc)
         if part:IsA("ParticleEmitter") then
             OriginalGunData[part] = {
                 Color = part.Color,
@@ -243,6 +279,11 @@ function GunMods:Init(Gui)
             if state then BuildWeaponCache() ApplyMods() else RestoreMods() end
         end, y)
 
+        y = g:CreateToggle("Infinite Ammo", GunMods.Config.InfiniteAmmo, function(state)
+            GunMods.Config.InfiniteAmmo = state
+            ApplyInfiniteAmmo()
+        end, y)
+
         y = g:CreateSlider("Fire Rate", 1, 200, math.floor(GunMods.Config.FireRate * 1000), function(val)
             GunMods.Config.FireRate = val / 1000
             if GunMods.Config.RapidFire then
@@ -276,6 +317,9 @@ function GunMods:Init(Gui)
             BuildWeaponCache()
             ApplyMods()
         end
+        if GunMods.Config.InfiniteAmmo then
+            ApplyInfiniteAmmo()
+        end
     end)
 
     task.spawn(function()
@@ -284,10 +328,13 @@ function GunMods:Init(Gui)
             if GunMods.Config.NoRecoil or GunMods.Config.RapidFire or GunMods.Config.NoSpread then
                 ApplyMods()
             end
+            if GunMods.Config.InfiniteAmmo then
+                ApplyInfiniteAmmo()
+            end
         end
     end)
 
-    print("[ENI] Gun Mods loaded — NoSpread + Rainbow fixed")
+    print("[ENI] Gun Mods loaded — Infinite Ammo + NoSpread + Rainbow")
     return self
 end
 

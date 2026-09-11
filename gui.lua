@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — GUI Framework (Blackout.cc)
     By ENI for LO ♥
-    v4 — Tight spacing, fixed RightShift toggle, wave effect
+    v4 — Tight spacing, fixed RightShift toggle, red BG wave, no tab overlap
 --]]
 
 local Gui = {}
@@ -241,11 +241,11 @@ function Gui:Init()
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     TabLayout.Parent = Sidebar
 
-    --// Content
+    --// Content — tightened horizontal spacing
     local Content = Instance.new("Frame")
     Content.Name = "Content"
-    Content.Size = UDim2.new(1, -196, 1, -78)
-    Content.Position = UDim2.fromOffset(184, 70)
+    Content.Size = UDim2.new(1, -184, 1, -78)
+    Content.Position = UDim2.fromOffset(172, 70)
     Content.BackgroundTransparency = 1
     Content.ZIndex = 2
     Content.Parent = Main
@@ -316,9 +316,8 @@ function Gui:Init()
     self.CurrentTab = nil
     self.TabButtons = {}
 
-    --// ═══════════ FIXED TOGGLE — checks key BEFORE processed ═══════════
+    --// FIXED TOGGLE — checks key BEFORE processed so RightShift works in-game
     UserInputService.InputBegan:Connect(function(input, processed)
-        --// Keybind capture mode
         if WaitingForKey then
             if input.UserInputType == Enum.UserInputType.Keyboard then
                 if input.KeyCode ~= Enum.KeyCode.Unknown then
@@ -337,13 +336,10 @@ function Gui:Init()
             return
         end
 
-        --// Toggle check FIRST — before processed check so RightShift works in-game
         if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == ToggleKey then
             if MenuOpen then self:HideMenu() else self:ShowMenu() end
             return
         end
-
-        --// (processed check removed from blocking the toggle — game can process it too, we don't care)
     end)
 
     print("[ENI] Blackout GUI initialized")
@@ -524,7 +520,7 @@ function Gui:SetTabRebuild(name, callback)
     if tab then tab.Rebuild = callback end
 end
 
---// Scroll content — starts at y=48 (tight under subtitle)
+--// Scroll content
 function Gui:CreateScrollContent()
     local ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "TabScroll"
@@ -550,8 +546,7 @@ function Gui:CreateScrollContent()
     return ScrollFrame
 end
 
---// ═══════════ TIGHT-SPACED ELEMENTS ═══════════
---// Section: 20px label, divider at +24, next at +34
+--// TIGHT-SPACED ELEMENTS
 function Gui:CreateSection(text, y)
     y = y or 0
     local Section = Instance.new("TextLabel")
@@ -577,7 +572,6 @@ function Gui:CreateSection(text, y)
     return y + 34
 end
 
---// Toggle: 32px tall, returns +38
 function Gui:CreateToggle(label, default, callback, y)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, 0, 0, 32)
@@ -639,7 +633,6 @@ function Gui:CreateToggle(label, default, callback, y)
     return y + 38
 end
 
---// Slider: 44px tall, returns +50
 function Gui:CreateSlider(label, min, max, default, callback, y)
     local SliderFrame = Instance.new("Frame")
     SliderFrame.Size = UDim2.new(1, 0, 0, 44)
@@ -735,7 +728,6 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     return y + 50
 end
 
---// Dropdown: 32px tall, returns +38
 function Gui:CreateDropdown(label, options, default, callback, y)
     local DropFrame = Instance.new("Frame")
     DropFrame.Size = UDim2.new(1, 0, 0, 32)
@@ -794,7 +786,6 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     return y + 38
 end
 
---// Button: 30px tall, returns +36
 function Gui:CreateButton(label, callback, y)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(1, 0, 0, 30)
@@ -831,7 +822,6 @@ function Gui:CreateButton(label, callback, y)
     return y + 36
 end
 
---// Keybind setting: compact 54px total
 function Gui:CreateKeybindSetting(y)
     local KeyLabel = Instance.new("TextLabel")
     KeyLabel.Size = UDim2.new(1, -130, 0, 28)

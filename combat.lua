@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — Combat Module (Blackout.cc)
     By ENI for LO ♥
-    Aimbot, Hitbox Expander — Wallcheck + Transparent Hitboxes
+    Aimbot, Silent Aim, Hitbox Expander
 --]]
 
 local Combat = {}
@@ -17,6 +17,7 @@ local Camera = Workspace.CurrentCamera
 
 Combat.Config = {
     AimbotEnabled = false,
+    SilentAimEnabled = false,
     HitboxEnabled = false,
     TeamCheck = true,
     WallCheck = false,
@@ -24,7 +25,8 @@ Combat.Config = {
     HitPart = "Head",
     HitboxSize = 13,
     HeadHBSize = 20,
-    AimKey = Enum.UserInputType.MouseButton2
+    AimKey = Enum.UserInputType.MouseButton2,
+    SilentAimFOV = 150
 }
 
 --// Drawing FOV Circle
@@ -36,6 +38,16 @@ FOV_Circle.NumSides = 100
 FOV_Circle.Transparency = 1
 FOV_Circle.Radius = 25
 FOV_Circle.Visible = false
+
+--// Silent Aim FOV Circle
+local SilentFOV_Circle = Drawing.new("Circle")
+SilentFOV_Circle.Color = Color3.fromRGB(255, 60, 60)
+SilentFOV_Circle.Thickness = 1
+SilentFOV_Circle.Filled = false
+SilentFOV_Circle.NumSides = 100
+SilentFOV_Circle.Transparency = 0.5
+SilentFOV_Circle.Radius = 150
+SilentFOV_Circle.Visible = false
 
 --// Wallcheck function
 local function IsVisible(targetPart)
@@ -93,6 +105,122 @@ local function GetClosestEnemy()
     return closestTarget
 end
 
+--// Silent Aim — runs on Actor for detection bypass
+local SilentAimRunning = false
+
+local function StartSilentAim()
+    if SilentAimRunning then return end
+    SilentAimRunning = true
+
+    local actor = getactors()[1]
+    if not actor then
+        warn("[ENI] No actor found for silent aim — executor may not support getactors()")
+        SilentAimRunning = false
+        return
+    end
+
+    run_on_actor(actor, [=[
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local Workspace = game:GetService("Workspace")
+        local LocalPlayer = Players.LocalPlayer
+
+        local target = nil
+
+        getgenv().__SilentAimConfig = getgenv().__SilentAimConfig or {}
+        local config = getgenv().__SilentAimConfig
+
+        local function isVisible(targetPart)
+            local origin = Workspace.CurrentCamera.CFrame
+            local params = RaycastParams.new()
+            params.FilterType = Enum.RaycastFilterType.Exclude
+            params.FilterDescendantsInstances = {LocalPlayer.Character}
+            params.IgnoreWater = true
+
+            local direction = (targetPart.Position - origin.Position)
+            local result = Workspace:Raycast(origin.Position, direction, params)
+
+            if result then
+                return Players:GetPlayerFromCharacter(result.Instance:FindFirstAncestorOfClass("Model")) ~= nil
+            else
+                return true
+            end
+        end
+
+        local function GetClosestPlayer()
+            local closestDistance = math.huge
+            local closest = nil
+            local camera = Workspace.CurrentCamera
+
+            for _, v in pairs(Players:GetPlayers()) do
+                if v == LocalPlayer then continue end
+
+                local char = v.Character
+                if not char then continue end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hrp then continue end
+                local hum = char:FindFirstChild("Humanoid")
+                if not hum or hum.Health <= 0 then continue end
+
+                if config.TeamCheck ~= false then
+                    local myteam = LocalPlayer.Team and LocalPlayer.Team.Name
+                    local theirTeam = v.Team and v.Team.Name
+                    if myteam == theirTeam then continue end
+                end
+
+                local head = char:FindFirstChild("Head")
+                if not head then continue end
+
+                local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    local fov = config.FOV or 150
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - camera.ViewportSize / 2).Magnitude
+                    if distance < closestDistance and distance < fov then
+                        if not isVisible(head) then continue end
+                        closestDistance = distance
+                        closest = head
+                    end
+                end
+            end
+
+            return closest
+        end
+
+        RunService.RenderStepped:Connect(function()
+            if config.Enabled == false then return end
+            target = GetClosestPlayer()
+        end)
+
+        for i, v in pairs(getgc()) do
+            if type(v) == "function" and islclosure(v) then
+                if debug.info(v, "a") == 2 and #debug.getupvalues(v) == 2 and #debug.getconstants(v) == 17 and debug.info(v, "n"):len() <= 10 then
+                    local old
+                    old = hookfunction(v, function(p1, p2)
+                        if target and target.Position and config.Enabled ~= false then
+                            local mychar = LocalPlayer.Character
+                            if mychar then
+                                local head = mychar:FindFirstChild("Head")
+                                if head then
+                                    local direction = (target.Position - head.Position)
+                                    p1 = Ray.new(head.Position, direction)
+                                end
+                            end
+                        end
+                        return old(p1, p2)
+                    end)
+                end
+            end
+        end
+    ]=])
+end
+
+local function StopSilentAim()
+    SilentAimRunning = false
+    getgenv().__SilentAimConfig = getgenv().__SilentAimConfig or {}
+    getgenv().__SilentAimConfig.Enabled = false
+end
+
+--// Input handlers
 UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Combat.Config.AimKey then
         IsAiming = true
@@ -105,11 +233,23 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
+--// Main render loop
 RunService.RenderStepped:Connect(function()
     local mousePos = UserInputService:GetMouseLocation()
+
     FOV_Circle.Position = Vector2.new(mousePos.X, mousePos.Y)
     FOV_Circle.Radius = Combat.Config.FOV
     FOV_Circle.Visible = Combat.Config.AimbotEnabled
+
+    SilentFOV_Circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    SilentFOV_Circle.Radius = Combat.Config.SilentAimFOV
+    SilentFOV_Circle.Visible = Combat.Config.SilentAimEnabled
+
+    getgenv().__SilentAimConfig = {
+        Enabled = Combat.Config.SilentAimEnabled,
+        FOV = Combat.Config.SilentAimFOV,
+        TeamCheck = Combat.Config.TeamCheck
+    }
 
     if Combat.Config.AimbotEnabled and IsAiming then
         local target = GetClosestEnemy()
@@ -119,7 +259,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Hitbox Expander — SAFE + TRANSPARENT
+--// Hitbox Expander
 local OriginalData = {}
 
 local function ExpandHitboxes()
@@ -183,7 +323,7 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
---// GUI Rebuild with Scrollable Content
+--// GUI
 function Combat:Init(Gui)
     self.Gui = Gui
 
@@ -206,7 +346,20 @@ function Combat:Init(Gui)
             Combat.Config.FOV = val
         end, y)
 
-        y = g:CreateSection("Hitbox Expander", y + 16)
+        y = g:CreateSection("Silent Aim", y + 10)
+        y = g:CreateToggle("Silent Aim", Combat.Config.SilentAimEnabled, function(state)
+            Combat.Config.SilentAimEnabled = state
+            if state then
+                StartSilentAim()
+            else
+                StopSilentAim()
+            end
+        end, y)
+        y = g:CreateSlider("Silent Aim FOV", 50, 500, Combat.Config.SilentAimFOV, function(val)
+            Combat.Config.SilentAimFOV = val
+        end, y)
+
+        y = g:CreateSection("Hitbox Expander", y + 10)
         y = g:CreateToggle("Hitbox Expander", Combat.Config.HitboxEnabled, function(state)
             Combat.Config.HitboxEnabled = state
             if not state then RestoreHitboxes() end
@@ -221,7 +374,7 @@ function Combat:Init(Gui)
         g.Content = originalContent
     end)
 
-    print("[ENI] Combat module loaded")
+    print("[ENI] Combat module loaded — Silent Aim ready")
     return self
 end
 

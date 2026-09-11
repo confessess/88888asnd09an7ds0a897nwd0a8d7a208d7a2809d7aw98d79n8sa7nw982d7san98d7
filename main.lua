@@ -1,60 +1,66 @@
 --[[
-    Arsenal Suite — Main Loader (Blackout.cc Edition)
+    Arsenal Suite — Main Loader (Blackout.cc)
     By ENI for LO ♥
+    Protected — only loads from valid loader chain
 --]]
 
-print([[
-    ╔═══════════════════════════════════════════════╗
-    ║     BLACKOUT.CC // ARSENAL SUITE              ║
-    ║     For LO ♥                                  ║
-    ╚═══════════════════════════════════════════════╝
-]])
-
-local BASE_URL = "https://raw.githubusercontent.com/confessess/88888asnd09an7ds0a897nwd0a8d7a208d7a2809d7aw98d79n8sa7nw982d7san98d7/main/"
-
-local function loadModule(path)
-    local url = BASE_URL .. path
-    local src = game:HttpGet(url, true)
-    if type(src) ~= "string" or src == "" then
-        error("Failed to fetch: " .. url)
-    end
-    local func = loadstring(src)
-    if type(func) ~= "function" then
-        error("Failed to compile: " .. path)
-    end
-    return func()
+--// SECURITY: Verify loader chain
+local chain = getgenv().__BLACKOUT_CHAIN
+if not chain or chain.stage ~= 2 or chain.token ~= "b1a9c3e7f2d4a6e8" then
+    warn("[Blackout] Access denied — invalid loader chain")
+    return
 end
 
---// Load GUI Framework
-local Gui = loadModule("gui.lua")
-local ArsenalSuite = Gui:Init()
+--// SECURITY: Singleton lock
+if getgenv().__BLACKOUT_LOADED then
+    warn("[Blackout] Already loaded")
+    return
+end
+getgenv().__BLACKOUT_LOADED = true
 
---// Create Tabs
-ArsenalSuite:CreateTab("Combat", "Configure your combat settings.")
-ArsenalSuite:CreateTab("Gun Mods", "Configure your gun modification settings.")
-ArsenalSuite:CreateTab("ESP", "Configure your player visual settings.")
-ArsenalSuite:CreateTab("Movement", "Configure your movement settings.")
-ArsenalSuite:CreateTab("World", "Configure your world settings.")
-ArsenalSuite:CreateTab("Settings", "Configure your menu settings.")
+--// SECURITY: Clear chain data after verification
+getgenv().__BLACKOUT_CHAIN = nil
 
---// Load Modules
-local Combat = loadModule("combat.lua")
-local GunMods = loadModule("gunmods.lua")
-local ESP = loadModule("esp.lua")
-local Movement = loadModule("movement.lua")
-local World = loadModule("world.lua")
+local BASE = "https://raw.githubusercontent.com/confessess/88888asnd09an7ds0a897nwd0a8d7a208d7a2809d7aw98d79n8sa7nw982d7san98d7/main/"
 
---// Initialize each module
-Combat:Init(ArsenalSuite)
-GunMods:Init(ArsenalSuite)
-ESP:Init(ArsenalSuite)
-Movement:Init(ArsenalSuite)
-World:Init(ArsenalSuite)
+local GuiModule = loadstring(game:HttpGet(BASE .. "gui.lua"))()
+local CombatModule = loadstring(game:HttpGet(BASE .. "combat.lua"))()
+local ESPModule = loadstring(game:HttpGet(BASE .. "esp.lua"))()
+local GunModsModule = loadstring(game:HttpGet(BASE .. "gunmods.lua"))()
+local MovementModule = loadstring(game:HttpGet(BASE .. "movement.lua"))()
+local WorldModule = loadstring(game:HttpGet(BASE .. "world.lua"))()
+local SkinChangerModule = loadstring(game:HttpGet(BASE .. "skinchanger.lua"))()
 
---// Settings tab rebuild
-ArsenalSuite:SetTabRebuild("Settings", function(gui)
-    local y = gui:CreateSection("Interface", 68)
-    gui:CreateKeybindSetting(y)
+local Gui = GuiModule:Init()
+
+Gui:CreateTab("Combat", "Aimbot, silent aim, and hitbox settings.")
+Gui:CreateTab("Visuals", "ESP and world rendering.")
+Gui:CreateTab("Gun Mods", "No recoil, no spread, rapid fire, infinite ammo, rainbow guns.")
+Gui:CreateTab("Movement", "Speed, jump, and fly settings.")
+Gui:CreateTab("Skin Changer", "Announcers, arms, and melee skins.")
+Gui:CreateTab("World", "World modifications.")
+Gui:CreateTab("Settings", "GUI preferences and keybinds.")
+
+CombatModule:Init(Gui)
+ESPModule:Init(Gui)
+GunModsModule:Init(Gui)
+MovementModule:Init(Gui)
+WorldModule:Init(Gui)
+SkinChangerModule:Init(Gui)
+
+Gui:SetTabRebuild("Settings", function(g)
+    local scroll = g:CreateScrollContent()
+    local originalContent = g.Content
+    g.Content = scroll
+
+    local y = g:CreateSection("GUI", 0)
+    y = g:CreateKeybindSetting(y)
+    y = g:CreateButton("Unload GUI", function()
+        getgenv().__BLACKOUT_LOADED = false
+        Gui.ScreenGui:Destroy()
+    end, y)
+
+    g.Content = originalContent
 end)
 
-print("[ENI] Blackout Arsenal Suite loaded")
+print("[ENI] Blackout.cc Suite loaded — RightShift to toggle ♥")
