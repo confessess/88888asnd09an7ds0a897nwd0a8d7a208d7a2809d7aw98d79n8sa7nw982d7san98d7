@@ -30,81 +30,122 @@ MovementModule:Init(Gui)
 WorldModule:Init(Gui)
 SkinChangerModule:Init(Gui)
 
---// CONFIG SAVE/LOAD — collects from all modules
-local function SaveAllConfigs()
+--// CONFIG SYSTEM — automatic save/load
+local CONFIG_PATH = "blackout_config.json"
+
+local function SerializeConfig(config)
+    local result = {}
+    for k, v in pairs(config) do
+        if typeof(v) == "EnumItem" then
+            result[k] = {__enum = true, type = tostring(v.EnumType), name = v.Name}
+        elseif typeof(v) == "Color3" then
+            result[k] = {__color = true, r = v.R, g = v.G, b = v.B}
+        elseif typeof(v) == "Vector3" then
+            result[k] = {__vector = true, x = v.X, y = v.Y, z = v.Z}
+        else
+            result[k] = v
+        end
+    end
+    return result
+end
+
+local function DeserializeConfig(data, targetConfig)
+    for k, v in pairs(data) do
+        if type(v) == "table" then
+            if v.__enum then
+                pcall(function() targetConfig[k] = Enum[v.type][v.name] end)
+            elseif v.__color then
+                targetConfig[k] = Color3.new(v.r, v.g, v.b)
+            elseif v.__vector then
+                targetConfig[k] = Vector3.new(v.x, v.y, v.z)
+            else
+                targetConfig[k] = v
+            end
+        else
+            targetConfig[k] = v
+        end
+    end
+end
+
+local function SaveConfig()
     local allConfigs = {
-        Combat = CombatModule.Config,
-        ESP = ESPModule.Config,
-        GunMods = GunModsModule.Config,
-        Movement = MovementModule.Config,
+        Combat = SerializeConfig(CombatModule.Config),
+        ESP = SerializeConfig(ESPModule.Config),
+        GunMods = SerializeConfig(GunModsModule.Config),
+        Movement = SerializeConfig(MovementModule.Config),
     }
 
-    local serializable = {}
-    for moduleName, config in pairs(allConfigs) do
-        serializable[moduleName] = {}
-        for k, v in pairs(config) do
-            if typeof(v) == "EnumItem" then
-                serializable[moduleName][k] = {__enum = true, type = tostring(v.EnumType), name = v.Name}
-            elseif typeof(v) == "Color3" then
-                serializable[moduleName][k] = {__color = true, r = v.R, g = v.G, b = v.B}
-            elseif typeof(v) == "Vector3" then
-                serializable[moduleName][k] = {__vector = true, x = v.X, y = v.Y, z = v.Z}
-            else
-                serializable[moduleName][k] = v
-            end
+    local json = game:GetService("HttpService"):JSONEncode(allConfigs)
+
+    -- Try to write to file if executor supports it
+    if writefile then
+        pcall(function()
+            writefile(CONFIG_PATH, json)
+            print("[ENI] Config saved to file!")
+        end)
+    else
+        -- Fallback: copy to clipboard
+        if setclipboard then
+            setclipboard(json)
+            print("[ENI] Config copied to clipboard (executor has no writefile)")
+        end
+    end
+end
+
+local function LoadConfig()
+    local json = nil
+
+    -- Try to read from file
+    if readfile then
+        local success, content = pcall(function()
+            return readfile(CONFIG_PATH)
+        end)
+        if success and content and #content > 0 then
+            json = content
+            print("[ENI] Config loaded from file!")
         end
     end
 
-    local json = game:GetService("HttpService"):JSONEncode(serializable)
-    print("[ENI] CONFIG (copy this):")
-    print(json)
-    if setclipboard then
-        setclipboard(json)
-        print("[ENI] Config copied to clipboard!")
+    -- If no file, try clipboard
+    if not json and getclipboard then
+        local success, content = pcall(function()
+            return getclipboard()
+        end)
+        if success and content and #content > 10 and content:find("{") then
+            json = content
+            print("[ENI] Config loaded from clipboard!")
+        end
     end
-    return json
-end
 
-local function LoadAllConfigs(jsonString)
-    local success, configs = pcall(function()
-        return game:GetService("HttpService"):JSONDecode(jsonString)
-    end)
-
-    if not success or type(configs) ~= "table" then
-        warn("[ENI] Invalid config string")
+    if not json then
+        print("[ENI] No saved config found — using defaults")
         return false
     end
 
-    for moduleName, config in pairs(configs) do
-        local module = nil
-        if moduleName == "Combat" then module = CombatModule
-        elseif moduleName == "ESP" then module = ESPModule
-        elseif moduleName == "GunMods" then module = GunModsModule
-        elseif moduleName == "Movement" then module = MovementModule
-        end
+    local success, configs = pcall(function()
+        return game:GetService("HttpService"):JSONDecode(json)
+    end)
 
-        if module and module.Config then
-            for k, v in pairs(config) do
-                if type(v) == "table" then
-                    if v.__enum then
-                        pcall(function() module.Config[k] = Enum[v.type][v.name] end)
-                    elseif v.__color then
-                        module.Config[k] = Color3.new(v.r, v.g, v.b)
-                    elseif v.__vector then
-                        module.Config[k] = Vector3.new(v.x, v.y, v.z)
-                    else
-                        module.Config[k] = v
-                    end
-                else
-                    module.Config[k] = v
-                end
-            end
-        end
+    if not success or type(configs) ~= "table" then
+        warn("[ENI] Invalid config data")
+        return false
     end
 
-    print("[ENI] Config loaded! Rebuild tabs to see changes.")
+    -- Apply configs
+    if configs.Combat then DeserializeConfig(configs.Combat, CombatModule.Config) end
+    if configs.ESP then DeserializeConfig(configs.ESP, ESPModule.Config) end
+    if configs.GunMods then DeserializeConfig(configs.GunMods, GunModsModule.Config) end
+    if configs.Movement then DeserializeConfig(configs.Movement, MovementModule.Config) end
+
+    print("[ENI] Config applied!")
     return true
 end
+
+--// AUTO-LOAD config on startup
+task.spawn(function()
+    task.wait(1) -- Wait for modules to init
+    LoadConfig()
+end)
 
 --// Settings tab rebuild
 Gui:SetTabRebuild("Settings", function(g)
@@ -120,17 +161,13 @@ Gui:SetTabRebuild("Settings", function(g)
 
     y = g:CreateSection("Config", y + 10)
     y = g:CreateButton("Save Config", function()
-        SaveAllConfigs()
+        SaveConfig()
     end, y)
     y = g:CreateButton("Load Config", function()
-        print("[ENI] To load config, run this in console:")
-        print('LoadAllConfigs([[paste_config_here]])')
+        LoadConfig()
     end, y)
 
     g.Content = originalContent
 end)
-
---// Expose load function globally for console use
-getgenv().__BlackoutLoadConfig = LoadAllConfigs
 
 print("[ENI] Blackout.cc Suite loaded — RightShift to toggle ♥")
