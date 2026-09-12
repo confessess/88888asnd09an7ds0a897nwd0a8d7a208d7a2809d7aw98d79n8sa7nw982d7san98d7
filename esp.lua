@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — ESP Module (Blackout.cc)
     By ENI for LO ♥
-    v2 — Z3US Full ESP added (Boxes, Names, Health, Distance, Weapon)
+    Z3US ESP + Highlight Chams, all RED
 --]]
 
 local ESP = {}
@@ -14,67 +14,24 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 ESP.Config = {
-    -- Original Highlight ESP
     Enabled = false,
+    Boxes = false,
+    Names = false,
+    Health = false,
+    Distance = false,
+    Weapon = false,
+    Chams = false,
     TeamCheck = true,
-    Distance = 1500,
-
-    -- Z3US Drawing ESP
-    Z3USEnabled = false,
-    Z3USBoxes = false,
-    Z3USNames = false,
-    Z3USHealth = false,
-    Z3USDistance = false,
-    Z3USWeapon = false,
-    Z3USTeamCheck = true,
-    Z3USRenderDistance = 1000,
-    Z3USColor = Color3.fromRGB(19, 0, 255),
+    RenderDistance = 1000,
+    Color = Color3.fromRGB(255, 0, 0),
 }
 
+local ESPObjects = {}
 local Highlights = {}
 
--- Original Highlight ESP functions
-local function AddESP(plr)
-    if plr == LocalPlayer then return end
-    if not plr.Character then return end
-    if Highlights[plr] then return end
-
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local targetHrp = plr.Character:FindFirstChild("HumanoidRootPart")
-    if hrp and targetHrp then
-        local dist = (hrp.Position - targetHrp.Position).Magnitude
-        if dist > ESP.Config.Distance then return end
-    end
-
-    local hl = Instance.new("Highlight")
-    hl.Name = "BlackoutESP"
-    hl.FillColor = plr.TeamColor and plr.TeamColor.Color or Color3.new(1, 0, 0)
-    hl.OutlineColor = Color3.new(1, 1, 1)
-    hl.FillTransparency = 0.4
-    hl.OutlineTransparency = 0
-    hl.Parent = plr.Character
-    Highlights[plr] = hl
-end
-
-local function RemoveESP(plr)
-    if Highlights[plr] then
-        Highlights[plr]:Destroy()
-        Highlights[plr] = nil
-    end
-end
-
-local function ClearAll()
-    for plr, _ in pairs(Highlights) do
-        RemoveESP(plr)
-    end
-end
-
--- Z3US Drawing ESP
-local Z3USESPObjects = {}
-
-local function Z3USCreateESP(player)
+local function CreateESP(player)
     if player == LocalPlayer then return end
+
     local esp = {
         Player = player,
         Box = Drawing.new("Square"),
@@ -89,7 +46,7 @@ local function Z3USCreateESP(player)
 
     esp.Box.Thickness = 1
     esp.Box.Filled = false
-    esp.Box.Color = ESP.Config.Z3USColor
+    esp.Box.Color = ESP.Config.Color
     esp.Box.Visible = false
 
     esp.BoxOutline.Thickness = 3
@@ -100,7 +57,7 @@ local function Z3USCreateESP(player)
     esp.Name.Size = 14
     esp.Name.Center = true
     esp.Name.Outline = true
-    esp.Name.Color = ESP.Config.Z3USColor
+    esp.Name.Color = ESP.Config.Color
     esp.Name.Visible = false
 
     esp.HealthBar.Filled = true
@@ -118,61 +75,90 @@ local function Z3USCreateESP(player)
     esp.Distance.Size = 12
     esp.Distance.Center = true
     esp.Distance.Outline = true
-    esp.Distance.Color = ESP.Config.Z3USColor
+    esp.Distance.Color = ESP.Config.Color
     esp.Distance.Visible = false
 
     esp.Weapon.Size = 12
     esp.Weapon.Center = true
     esp.Weapon.Outline = true
-    esp.Weapon.Color = ESP.Config.Z3USColor
+    esp.Weapon.Color = ESP.Config.Color
     esp.Weapon.Visible = false
 
-    Z3USESPObjects[player] = esp
+    ESPObjects[player] = esp
+
+    if not Highlights[player] then
+        local hl = Instance.new("Highlight")
+        hl.Name = "ESPChams"
+        hl.FillColor = ESP.Config.Color
+        hl.OutlineColor = ESP.Config.Color
+        hl.FillTransparency = 0.5
+        hl.OutlineTransparency = 0
+        hl.Enabled = false
+        Highlights[player] = hl
+    end
+
     return esp
 end
 
-local function Z3USRemoveESP(player)
-    local esp = Z3USESPObjects[player]
+local function RemoveESP(player)
+    local esp = ESPObjects[player]
     if esp then
         for _, obj in pairs(esp) do
-            if type(obj) == "table" and obj.Remove then
-                obj:Remove()
+            if type(obj) == "table" and obj.Remove then obj:Remove() end
+        end
+        ESPObjects[player] = nil
+    end
+    local hl = Highlights[player]
+    if hl then hl:Destroy() Highlights[player] = nil end
+end
+
+local function UpdateChams()
+    for player, hl in pairs(Highlights) do
+        local character = player.Character
+        local showChams = false
+        if character and ESP.Config.Chams and ESP.Config.Enabled then
+            if not ESP.Config.TeamCheck or player.Team ~= LocalPlayer.Team then
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    local distance = (rootPart.Position - Workspace.CurrentCamera.CFrame.Position).Magnitude
+                    if distance <= ESP.Config.RenderDistance then
+                        showChams = true
+                        hl.Parent = character
+                    end
+                end
             end
         end
-        Z3USESPObjects[player] = nil
+        hl.Enabled = showChams
+        if showChams then
+            hl.FillColor = ESP.Config.Color
+            hl.OutlineColor = ESP.Config.Color
+        end
     end
 end
 
-local function Z3USUpdateESP()
-    for player, esp in pairs(Z3USESPObjects) do
+local function UpdateESP()
+    for player, esp in pairs(ESPObjects) do
         local character = player.Character
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
         local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 
         if character and humanoid and rootPart and humanoid.Health > 0 then
             local showESP = true
-            if ESP.Config.Z3USTeamCheck and player.Team == LocalPlayer.Team then
-                showESP = false
-            end
-
+            if ESP.Config.TeamCheck and player.Team == LocalPlayer.Team then showESP = false end
             local distance = (rootPart.Position - Workspace.CurrentCamera.CFrame.Position).Magnitude
-            if distance > ESP.Config.Z3USRenderDistance then
-                showESP = false
-            end
+            if distance > ESP.Config.RenderDistance then showESP = false end
 
-            if showESP and ESP.Config.Z3USEnabled then
+            if showESP and ESP.Config.Enabled then
                 local pos, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position)
-
                 if onScreen then
                     local height = (Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0)).Y - Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 3, 0)).Y)
                     local width = height / 2
 
-                    if ESP.Config.Z3USBoxes then
+                    if ESP.Config.Boxes then
                         esp.Box.Size = Vector2.new(width, height)
                         esp.Box.Position = Vector2.new(pos.X - width / 2, pos.Y - height / 2)
-                        esp.Box.Color = ESP.Config.Z3USColor
+                        esp.Box.Color = ESP.Config.Color
                         esp.Box.Visible = true
-
                         esp.BoxOutline.Size = Vector2.new(width, height)
                         esp.BoxOutline.Position = Vector2.new(pos.X - width / 2, pos.Y - height / 2)
                         esp.BoxOutline.Visible = true
@@ -181,28 +167,23 @@ local function Z3USUpdateESP()
                         esp.BoxOutline.Visible = false
                     end
 
-                    if ESP.Config.Z3USNames then
+                    if ESP.Config.Names then
                         esp.Name.Text = player.Name
                         esp.Name.Position = Vector2.new(pos.X, pos.Y - height / 2 - 15)
-                        esp.Name.Color = ESP.Config.Z3USColor
+                        esp.Name.Color = ESP.Config.Color
                         esp.Name.Visible = true
-                    else
-                        esp.Name.Visible = false
-                    end
+                    else esp.Name.Visible = false end
 
-                    if ESP.Config.Z3USHealth then
+                    if ESP.Config.Health then
                         local healthPercent = humanoid.Health / humanoid.MaxHealth
                         local barHeight = height * healthPercent
-
                         esp.HealthBar.Size = Vector2.new(4, barHeight)
                         esp.HealthBar.Position = Vector2.new(pos.X - width / 2 - 6, pos.Y + height / 2 - barHeight)
                         esp.HealthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
                         esp.HealthBar.Visible = true
-
                         esp.HealthBarOutline.Size = Vector2.new(6, height)
                         esp.HealthBarOutline.Position = Vector2.new(pos.X - width / 2 - 7, pos.Y - height / 2)
                         esp.HealthBarOutline.Visible = true
-
                         esp.HealthText.Text = tostring(math.floor(humanoid.Health))
                         esp.HealthText.Position = Vector2.new(pos.X - width / 2 - 20, pos.Y)
                         esp.HealthText.Color = esp.HealthBar.Color
@@ -213,150 +194,59 @@ local function Z3USUpdateESP()
                         esp.HealthText.Visible = false
                     end
 
-                    if ESP.Config.Z3USDistance then
+                    if ESP.Config.Distance then
                         esp.Distance.Text = math.floor(distance) .. "m"
                         esp.Distance.Position = Vector2.new(pos.X, pos.Y + height / 2 + 5)
+                        esp.Distance.Color = ESP.Config.Color
                         esp.Distance.Visible = true
-                    else
-                        esp.Distance.Visible = false
-                    end
+                    else esp.Distance.Visible = false end
 
-                    if ESP.Config.Z3USWeapon then
+                    if ESP.Config.Weapon then
                         local tool = character:FindFirstChildOfClass("Tool")
                         esp.Weapon.Text = tool and tool.Name or "None"
                         esp.Weapon.Position = Vector2.new(pos.X, pos.Y + height / 2 + 20)
+                        esp.Weapon.Color = ESP.Config.Color
                         esp.Weapon.Visible = true
-                    else
-                        esp.Weapon.Visible = false
-                    end
+                    else esp.Weapon.Visible = false end
                 else
-                    for _, obj in pairs(esp) do
-                        if type(obj) == "table" and obj.Visible ~= nil then
-                            obj.Visible = false
-                        end
-                    end
+                    for _, obj in pairs(esp) do if type(obj) == "table" and obj.Visible ~= nil then obj.Visible = false end end
                 end
             else
-                for _, obj in pairs(esp) do
-                    if type(obj) == "table" and obj.Visible ~= nil then
-                        obj.Visible = false
-                    end
-                end
+                for _, obj in pairs(esp) do if type(obj) == "table" and obj.Visible ~= nil then obj.Visible = false end end
             end
         else
-            for _, obj in pairs(esp) do
-                if type(obj) == "table" and obj.Visible ~= nil then
-                    obj.Visible = false
-                end
-            end
+            for _, obj in pairs(esp) do if type(obj) == "table" and obj.Visible ~= nil then obj.Visible = false end end
         end
     end
+    UpdateChams()
 end
 
--- Main loops
-task.spawn(function()
-    while true do
-        task.wait(1)
-        -- Original Highlight ESP
-        if ESP.Config.Enabled then
-            for plr, hl in pairs(Highlights) do
-                if not plr.Parent or not plr.Character or not hl.Parent then
-                    RemoveESP(plr)
-                end
-            end
-            for _, plr in ipairs(Players:GetPlayers()) do
-                if plr ~= LocalPlayer and plr.Character then
-                    if ESP.Config.TeamCheck and plr.Team == LocalPlayer.Team then
-                        RemoveESP(plr)
-                    else
-                        AddESP(plr)
-                    end
-                end
-            end
-        end
-    end
-end)
+RunService.RenderStepped:Connect(UpdateESP)
 
--- Z3US ESP loop
-RunService.RenderStepped:Connect(Z3USUpdateESP)
+for _, player in ipairs(Players:GetPlayers()) do if player ~= LocalPlayer then CreateESP(player) end end
+Players.PlayerAdded:Connect(function(p) task.wait(1) CreateESP(p) end)
+Players.PlayerRemoving:Connect(RemoveESP)
 
--- Create ESP objects for existing players
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        Z3USCreateESP(player)
-    end
-end
-
-Players.PlayerAdded:Connect(function(player)
-    task.wait(1)
-    Z3USCreateESP(player)
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    Z3USRemoveESP(player)
-end)
-
--- GUI
 function ESP:Init(Gui)
     self.Gui = Gui
-
     Gui:SetTabRebuild("Visuals", function(g)
         local scroll = g:CreateScrollContent()
         local originalContent = g.Content
         g.Content = scroll
 
-        -- Original Highlight ESP
-        local y = g:CreateSection("Highlight ESP", 0)
-        y = g:CreateToggle("ESP Enabled", ESP.Config.Enabled, function(state)
-            ESP.Config.Enabled = state
-            if not state then ClearAll() end
-        end, y)
-        y = g:CreateToggle("Team Check", ESP.Config.TeamCheck, function(state)
-            ESP.Config.TeamCheck = state
-        end, y)
-        y = g:CreateSlider("Render Distance", 100, 5000, ESP.Config.Distance, function(val)
-            ESP.Config.Distance = val
-        end, y)
-
-        -- Z3US Drawing ESP
-        y = g:CreateSection("Z3US Full ESP", y + 10)
-
-        y = g:CreateToggle("Z3US ESP Enabled", false, function(state)
-            ESP.Config.Z3USEnabled = state
-        end, y)
-
-        y = g:CreateToggle("Boxes", false, function(state)
-            ESP.Config.Z3USBoxes = state
-        end, y)
-
-        y = g:CreateToggle("Names", false, function(state)
-            ESP.Config.Z3USNames = state
-        end, y)
-
-        y = g:CreateToggle("Health", false, function(state)
-            ESP.Config.Z3USHealth = state
-        end, y)
-
-        y = g:CreateToggle("Distance", false, function(state)
-            ESP.Config.Z3USDistance = state
-        end, y)
-
-        y = g:CreateToggle("Weapon", false, function(state)
-            ESP.Config.Z3USWeapon = state
-        end, y)
-
-        y = g:CreateToggle("Team Check", true, function(state)
-            ESP.Config.Z3USTeamCheck = state
-        end, y)
-
-        y = g:CreateSlider("Render Distance", 10, 2500, 1000, function(val)
-            ESP.Config.Z3USRenderDistance = val
-        end, y)
+        local y = g:CreateSection("ESP", 0)
+        y = g:CreateToggle("Enabled", false, function(s) ESP.Config.Enabled = s end, y)
+        y = g:CreateToggle("Boxes", false, function(s) ESP.Config.Boxes = s end, y)
+        y = g:CreateToggle("Names", false, function(s) ESP.Config.Names = s end, y)
+        y = g:CreateToggle("Health", false, function(s) ESP.Config.Health = s end, y)
+        y = g:CreateToggle("Distance", false, function(s) ESP.Config.Distance = s end, y)
+        y = g:CreateToggle("Weapon", false, function(s) ESP.Config.Weapon = s end, y)
+        y = g:CreateToggle("Chams", false, function(s) ESP.Config.Chams = s end, y)
+        y = g:CreateToggle("Team Check", true, function(s) ESP.Config.TeamCheck = s end, y)
+        y = g:CreateSlider("Render Distance", 10, 2500, 1000, function(v) ESP.Config.RenderDistance = v end, y)
 
         g.Content = originalContent
     end)
-
-    print("[ENI] ESP module loaded with Z3US Full ESP")
     return self
 end
 
