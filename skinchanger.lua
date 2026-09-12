@@ -2,7 +2,7 @@
     Arsenal Suite — Skin Changer Module (Blackout.cc)
     By ENI for LO ♥
     Announcers, Arms, Melee Standard, Troll Melee, Tryhard
-    v3 — Exact original arms logic
+    v3.1 — Added "Fix Invisible" button for when arms/weapon go invisible
 --]]
 
 local SkinChanger = {}
@@ -10,6 +10,7 @@ SkinChanger.__index = SkinChanger
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -104,6 +105,41 @@ local function RevertMelee()
     end)
 end
 
+--// FIX INVISIBLE — restores arms, melee, and viewmodel visibility
+local function FixInvisible()
+    -- Step 1: Restore all arm models to "Delinquent" so game finds them
+    RevertArms()
+
+    -- Step 2: Reset melee to default
+    RevertMelee()
+
+    -- Step 3: Clear any stuck transparency on camera viewmodel parts
+    pcall(function()
+        local camera = Workspace.CurrentCamera
+        if camera then
+            for _, desc in ipairs(camera:GetDescendants()) do
+                if desc:IsA("BasePart") and desc.LocalTransparencyModifier > 0 then
+                    desc.LocalTransparencyModifier = 0
+                end
+            end
+        end
+    end)
+
+    -- Step 4: Clear stuck transparency on character parts
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            for _, desc in ipairs(char:GetDescendants()) do
+                if desc:IsA("BasePart") and desc.LocalTransparencyModifier > 0 then
+                    desc.LocalTransparencyModifier = 0
+                end
+            end
+        end
+    end)
+
+    print("[ENI] Fix Invisible applied — arms, weapon, and character restored")
+end
+
 --// GUI
 
 function SkinChanger:Init(Gui)
@@ -147,10 +183,15 @@ function SkinChanger:Init(Gui)
             RevertMelee()
         end, y)
 
+        --// THE FIX BUTTON — press when arms/weapon go invisible
+        y = g:CreateButton("Fix Invisible Arms/Weapon", function()
+            FixInvisible()
+        end, y)
+
         g.Content = originalContent
     end)
 
-    print("[ENI] Skin Changer loaded — exact original arms logic")
+    print("[ENI] Skin Changer loaded — with Fix Invisible button")
     return self
 end
 
