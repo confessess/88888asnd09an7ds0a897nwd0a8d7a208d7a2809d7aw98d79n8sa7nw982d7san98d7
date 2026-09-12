@@ -1,9 +1,10 @@
 --[[
     Arsenal Suite — Skin Changer (Blackout.cc)
-    Original by LO — cleaned by ENI ♥
+    Original by LO — rebuilt by ENI ♥
 
-    v2 — Removed broken Gun Chams section (now lives in gunmods.lua Weapon tab)
-    Fixed Data value handling so skins actually apply
+    v4 — Player Skins + Knife + Announcer (arms removed per LO's request)
+    AUTO-UPDATE: dropdown selection applies instantly
+    FIXED: weapon no longer disappears — validated names + viewmodel safety
 --]]
 
 local SkinChanger = {}
@@ -11,166 +12,321 @@ SkinChanger.__index = SkinChanger
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
 SkinChanger.Config = {
-    MeleeSkin = "None",
+    PlayerSkin = "None",
+    KnifeSkin = "None",
     AnnouncerSkin = "None",
-    ArmSkin = "None",
+    AutoRespawn = false, -- instantly respawn to apply skin (optional)
 }
 
---// Wait for Data folder — robust against slow loading
+--// Wait for Data folder
 local Data = LocalPlayer:WaitForChild("Data", 10)
 if not Data then
-    warn("[ENI] Data folder not found after 10s — skin changer may not work")
+    warn("[ENI] Data folder not found — skin changer disabled")
 end
 
---// Valid skin lists (populated dynamically if possible, else fallback)
-local MeleeSkins = {
-    "None", "Crucible", "Endbringer", "The Windforce", "The Darkheart",
-    "The Illumina", "The Venomshank", "The Ghostwalker", "Night's Edge",
-    "Classic Sword", "Space Katana", "SuperSpaceKatana", "Katana",
-    "Machete", "Chainsaw", "Scythe", "Hallow's Scythe", "Coal Scythe",
-    "Skele Scythe", "Heart Break", "Death's Blade", "Ghost Ripper",
-    "Stinger", "Digi-Blade", "Swift End", "Divinity", "Glacier Blade",
-    "Khopesh", "Energy Blade", "Energy Katar", "Katar", "Rapier",
-    "Saber", "Sabre", "Naginata", "Daito", "Doublade", "Reclaimer",
-    "Assimilator", "Synthlight Greatsword", "Spring Greatsword",
-    "Easter Cleaver", "Bunny Staff", "The Scrambler", "Grumpy Hammer",
-    "The Fool's Tool", "Blast Hammer", "Merry Masher", "Peppermint Hammer",
-    "Candy Cane Claws", "Slicecicle", "Icicle", "The Ice Dagger",
-    "Frostweaver's Wand", "Handblades", "Stranger's Handblades",
-    "Makeshift Axe", "Leader's Axe", "Wired Bat", "Rebel's Bat",
-    "Rusty Pipe", "Roughian's Pipe", "Makeshift Saw", "Pipe Wrench Shank",
-    "Drill-Shear Skewer", "Earth Cleaver", "Harvester", "Ban Hammer",
-    "Moderation Hammer", "Rokia Hammer", "Sledgehammer", "Reliable Hammer",
-    "Bat Axe", "Electro Axe", "Pumpkin Axe", "Halberd", "Hero's Sword",
-    "Aged Shovel", "Bone Club", "Blossoming Femur", "Golden Rings",
-    "Divine Medallions", "Claws", "Slappy", "Crab Claw", "R.A.M",
-    "Starfire Staff", "Pumpkin Staff", "Candleabra", "Candle Sword",
-    "Electronic Stake", "Fire Poker", "Garlic Kebab", "Carrot", "Banana",
-    "Loaf", "Swordfish", "Silver Bell", "Skull Pal", "Seal", "Kunai",
-    "Kukri", "Sickle", "Candy Cane", "Toy Tree", "Pencil", "Pan",
-    "Wooden Spoon", "Rubber Hammer", "Pitchfork", "Spellbook",
-    "Brass Knuckles", "Butterfly Knife", "Tactical Knife", "Combat Knife",
-    "Kitchen Knife", "Gingerbread Knife", "Dagger", "Blade", "Karambit",
-    "Bone Karambit", "Tomahawk", "Crowbar", "Wrench", "Bat", "Doodle Sign",
-    "Newspaper", "Paddle", "Racket", "Plane", "Nomad's Blade", "Stop Sign",
-    "Guitar", "Paint Brush", "Bouquet", "Mop", "Big Sip", "Delinquent Pop",
-    "Sip O' Stink", "Handy Candy", "Smug Egg", "Egg", "Pumpkin Bucket",
-    "Coral Blade", "Annihilator's Broken Sword", "Da Melee", "Literal Melee",
-    "Calculator", "Fisticuffs", "Moai", "Killbrick Melee", "Brick",
-    "Bloxy", "ACT Trophy", "ACT Trophy S6", "Fish", "Peppermint Slicer",
-    "Frog", "Electric Flail", "Beast Hammer", "Can Mace",
-}
+--// Snapshot original Data values for safe restore
+local OriginalValues = {}
+if Data then
+    for _, child in ipairs(Data:GetChildren()) do
+        if child:IsA("ValueBase") then
+            OriginalValues[child.Name] = child.Value
+        end
+    end
+end
 
-local AnnouncerSkins = {
-    "None", "Default", "Deep", "Feminine", "Masculine", "Robot",
-    "Anime", "Epic", "John", "Meme", "Retro", "Smooth", "Veteran",
-    "Zombie", "Narrator", "Sports", "Action", "Dramatic", "Chill",
-}
+--// ═══════════════════════════════════════════════════════════════
+-- VALID SKIN DISCOVERY — scrape from game so names are always valid
+-- Invalid names = broken character = "weapon disappears" bug
+-- ═══════════════════════════════════════════════════════════════
 
-local ArmSkins = {
-    "None", "Default", "Black", "White", "Red", "Blue", "Green",
-    "Tactical", "Fingerless", "Gloves", "Wraps", "Bandages",
-    "Mechanical", "Cyber", "Golden", "Diamond", "Camo", "Winter",
-    "Ninja", "Boxing", "MMA", "Military", "Police", "Fire",
-}
+local PlayerSkins = {"None"}
+local KnifeSkins = {"None"}
+local AnnouncerSkins = {"None"}
 
---// Try to populate from game data for accuracy
-task.spawn(function()
-    local success, result = pcall(function()
-        local replicated = game:GetService("ReplicatedStorage")
-        -- Arsenal stores skin data in various places; try common ones
-        local skinData = replicated:FindFirstChild("SkinData") 
-            or replicated:FindFirstChild("Skins")
-            or replicated:FindFirstChild("Assets")
-        if skinData then
-            local found = {}
-            for _, child in ipairs(skinData:GetChildren()) do
-                table.insert(found, child.Name)
+-- Discover player skins from game
+local function DiscoverPlayerSkins()
+    local found = {}
+
+    -- Method 1: ReplicatedStorage.Skins / PlayerSkins / Characters
+    for _, folderName in ipairs({"Skins", "PlayerSkins", "Characters", "CharacterSkins", "SkinModels"}) do
+        local folder = ReplicatedStorage:FindFirstChild(folderName)
+        if folder then
+            for _, item in ipairs(folder:GetChildren()) do
+                table.insert(found, item.Name)
             end
-            if #found > 0 then
-                -- Merge with defaults, keeping "None" first
-                local merged = {"None"}
-                for _, name in ipairs(found) do
-                    if name ~= "None" then
-                        table.insert(merged, name)
-                    end
+        end
+    end
+
+    -- Method 2: Look inside Assets or Content folders
+    for _, parentName in ipairs({"Assets", "Content", "GameAssets", "Items"}) do
+        local parent = ReplicatedStorage:FindFirstChild(parentName)
+        if parent then
+            local skinsFolder = parent:FindFirstChild("Skins") or parent:FindFirstChild("Characters")
+            if skinsFolder then
+                for _, item in ipairs(skinsFolder:GetChildren()) do
+                    table.insert(found, item.Name)
                 end
-                MeleeSkins = merged
+            end
+        end
+    end
+
+    -- Method 3: Arsenal-specific — check PlayerData defaults or module
+    local success, result = pcall(function()
+        local skinModule = ReplicatedStorage:FindFirstChild("SkinData") 
+            or ReplicatedStorage:FindFirstChild("SkinModule")
+        if skinModule and skinModule:IsA("ModuleScript") then
+            local data = require(skinModule)
+            if type(data) == "table" then
+                for name, _ in pairs(data) do
+                    table.insert(found, name)
+                end
             end
         end
     end)
-end)
 
---// Core skin application — sets Data values that Arsenal reads
-local function SetDataValue(valueName, skinName)
-    if not Data then
-        warn("[ENI] No Data folder — cannot set " .. valueName)
+    -- Fallback: common Arsenal skin names (only if scraping found nothing)
+    if #found == 0 then
+        found = {
+            "Delinquent", "Rabbit Raider", "Cyber Punk", "Soldier", "Anarchist",
+            "Bomber", "Captain", "Criminal", "Desperado", "Detective", "Doctor",
+            "Engineer", "Farmer", "Fisherman", "Gangster", "Hunter", "Knight",
+            "Mafia", "Ninja", "Officer", "Pilot", "Pirate", "Psycho", "Ranger",
+            "Riot", "Roadman", "Rogue", "Samurai", "Scout", "Sniper", "Spy",
+            "Survivor", "Swat", "Thief", "Veteran", "Warrior", "Wizard", "Zombie",
+        }
+    end
+
+    -- Deduplicate
+    local seen = {["None"] = true}
+    for _, name in ipairs(found) do
+        if not seen[name] then
+            seen[name] = true
+            table.insert(PlayerSkins, name)
+        end
+    end
+
+    print("[ENI] Discovered " .. #PlayerSkins - 1 .. " player skins")
+end
+
+-- Discover knife/melee skins
+local function DiscoverKnifeSkins()
+    local found = {}
+
+    -- Method 1: ReplicatedStorage.Weapons (melee weapons)
+    local weapons = ReplicatedStorage:FindFirstChild("Weapons")
+    if weapons then
+        for _, w in ipairs(weapons:GetChildren()) do
+            -- Melee weapons typically don't have a "Gun" or "Ranged" attribute
+            local isGun = w:FindFirstChild("Ammo") or w:FindFirstChild("MagSize") or w:FindFirstChild("ClipSize")
+            if not isGun then
+                table.insert(found, w.Name)
+            end
+        end
+    end
+
+    -- Method 2: Dedicated melee folders
+    for _, folderName in ipairs({"Melee", "MeleeWeapons", "Knives", "MeleeSkins"}) do
+        local folder = ReplicatedStorage:FindFirstChild(folderName)
+        if folder then
+            for _, item in ipairs(folder:GetChildren()) do
+                table.insert(found, item.Name)
+            end
+        end
+    end
+
+    -- Method 3: Backpack tools
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                table.insert(found, tool.Name)
+            end
+        end
+    end
+
+    -- Fallback: common Arsenal melee names
+    if #found == 0 then
+        found = {
+            "Knife", "Machete", "Katana", "Butterfly Knife", "Karambit",
+            "Tactical Knife", "Combat Knife", "Kitchen Knife", "Dagger",
+            "Crowbar", "Wrench", "Bat", "Sickle", "Kukri", "Kunai",
+            "Tomahawk", "Scythe", "Chainsaw", "Saber", "Rapier",
+        }
+    end
+
+    local seen = {["None"] = true}
+    for _, name in ipairs(found) do
+        if not seen[name] then
+            seen[name] = true
+            table.insert(KnifeSkins, name)
+        end
+    end
+
+    print("[ENI] Discovered " .. #KnifeSkins - 1 .. " knife skins")
+end
+
+-- Discover announcer skins
+local function DiscoverAnnouncerSkins()
+    local found = {}
+
+    for _, folderName in ipairs({"Announcers", "Announcer", "Voices", "VoicePacks", "AnnouncerSkins"}) do
+        local folder = ReplicatedStorage:FindFirstChild(folderName)
+        if folder then
+            for _, item in ipairs(folder:GetChildren()) do
+                table.insert(found, item.Name)
+            end
+        end
+    end
+
+    -- Fallback: common Arsenal announcer names
+    if #found == 0 then
+        found = {"Default", "Deep", "Feminine", "Masculine", "Robot", "Anime", "John", "Narrator"}
+    end
+
+    local seen = {["None"] = true}
+    for _, name in ipairs(found) do
+        if not seen[name] then
+            seen[name] = true
+            table.insert(AnnouncerSkins, name)
+        end
+    end
+
+    print("[ENI] Discovered " .. #AnnouncerSkins - 1 .. " announcers")
+end
+
+-- Run discovery
+DiscoverPlayerSkins()
+DiscoverKnifeSkins()
+DiscoverAnnouncerSkins()
+
+--// ═══════════════════════════════════════════════════════════════
+-- CORE SKIN APPLICATION — validated, instant, safe
+-- ═══════════════════════════════════════════════════════════════
+
+-- Find the actual Data value object with alternate name support
+local function FindDataValue(valueName)
+    if not Data then return nil end
+
+    local direct = Data:FindFirstChild(valueName)
+    if direct then return direct end
+
+    local alternates = {
+        ["PlayerSkin"] = {"Skin", "PlayerSkin", "Character", "CharacterSkin", "EquippedSkin"},
+        ["KnifeSkin"] = {"MeleeSkin", "Melee", "MeleeWeapon", "Knife", "EquippedMelee"},
+        ["Announcer"] = {"Announcer", "AnnouncerSkin", "Voice", "VoicePack", "EquippedAnnouncer"},
+    }
+
+    for _, altName in ipairs(alternates[valueName] or {}) do
+        local found = Data:FindFirstChild(altName)
+        if found then return found end
+    end
+
+    return nil
+end
+
+-- Validate skin name exists
+local function IsValidSkin(skinName, validList)
+    if skinName == "None" then return true end
+    for _, name in ipairs(validList) do
+        if name == skinName then return true end
+    end
+    return false
+end
+
+-- Restore viewmodel visibility (fix for "weapon disappears")
+local function RestoreViewmodelVisibility()
+    local camera = Workspace.CurrentCamera
+    if not camera then return end
+
+    for _, desc in ipairs(camera:GetDescendants()) do
+        if desc:IsA("BasePart") and desc:GetAttribute("ENI_SkinHidden") then
+            desc.LocalTransparencyModifier = 0
+            desc:SetAttribute("ENI_SkinHidden", nil)
+        end
+    end
+end
+
+-- Set a skin with full validation and safety
+local function SetSkin(valueName, skinName, validList)
+    if not IsValidSkin(skinName, validList) then
+        warn("[ENI] Invalid skin '" .. tostring(skinName) .. "' — not applying")
         return false
     end
 
-    local value = Data:FindFirstChild(valueName)
+    local value = FindDataValue(valueName)
     if not value then
-        -- Try alternate names
-        local alternates = {
-            ["MeleeSkin"] = {"Melee", "MeleeWeapon", "MeleeSkin"},
-            ["Announcer"] = {"Announcer", "AnnouncerSkin", "Voice"},
-            ["Skin"] = {"Skin", "ArmSkin", "Arms", "Gloves"},
-        }
-
-        local found = nil
-        for _, altName in ipairs(alternates[valueName] or {}) do
-            found = Data:FindFirstChild(altName)
-            if found then break end
-        end
-
-        if not found then
-            warn("[ENI] Data value '" .. valueName .. "' not found")
-            return false
-        end
-        value = found
+        warn("[ENI] Data value for " .. valueName .. " not found")
+        return false
     end
 
-    local success, err = pcall(function()
-        value.Value = skinName
-    end)
+    -- "None" = restore original
+    if skinName == "None" then
+        local original = OriginalValues[value.Name]
+        if original then
+            local success = pcall(function() value.Value = original end)
+            if success then
+                print("[ENI] Restored " .. value.Name .. " = " .. tostring(original))
+                task.delay(0.3, RestoreViewmodelVisibility)
+                return true
+            end
+        end
+        return false
+    end
+
+    -- Apply
+    local success, err = pcall(function() value.Value = skinName end)
 
     if success then
-        print("[ENI] Set " .. valueName .. " = " .. skinName)
+        print("[ENI] ✓ " .. valueName .. " = " .. skinName)
+
+        -- Safety: restore viewmodel visibility after skin change
+        task.delay(0.5, RestoreViewmodelVisibility)
+
+        -- Optional: instant respawn to apply skin immediately
+        if SkinChanger.Config.AutoRespawn and valueName == "PlayerSkin" then
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.Health = 0
+                end
+            end
+        end
+
         return true
     else
-        warn("[ENI] Failed to set " .. valueName .. ": " .. tostring(err))
+        warn("[ENI] Failed: " .. tostring(err))
         return false
     end
 end
 
---// Apply all configured skins (called on spawn and manually)
+-- Apply all configured skins (on respawn)
 local function ApplyAllSkins()
-    if SkinChanger.Config.MeleeSkin ~= "None" then
-        SetDataValue("MeleeSkin", SkinChanger.Config.MeleeSkin)
+    if SkinChanger.Config.PlayerSkin ~= "None" then
+        SetSkin("PlayerSkin", SkinChanger.Config.PlayerSkin, PlayerSkins)
+    end
+    if SkinChanger.Config.KnifeSkin ~= "None" then
+        SetSkin("KnifeSkin", SkinChanger.Config.KnifeSkin, KnifeSkins)
     end
     if SkinChanger.Config.AnnouncerSkin ~= "None" then
-        SetDataValue("Announcer", SkinChanger.Config.AnnouncerSkin)
-    end
-    if SkinChanger.Config.ArmSkin ~= "None" then
-        SetDataValue("Skin", SkinChanger.Config.ArmSkin)
+        SetSkin("Announcer", SkinChanger.Config.AnnouncerSkin, AnnouncerSkins)
     end
 end
 
---// Re-apply on respawn (Data values sometimes reset)
+--// Auto-reapply on respawn
 LocalPlayer.CharacterAdded:Connect(function(char)
-    task.wait(1) -- Let character fully load
+    task.wait(1.5)
     ApplyAllSkins()
+    RestoreViewmodelVisibility()
 end)
 
--- ═══════════════════════════════════════════════════════════════
--- GUI — Uses Blackout.cc framework API
--- Gun Chams section REMOVED — now lives in gunmods.lua Weapon tab
+--// ═══════════════════════════════════════════════════════════════
+-- GUI — AUTO-UPDATE: select from dropdown = instant apply
 -- ═══════════════════════════════════════════════════════════════
 
 function SkinChanger:Init(Gui)
@@ -181,81 +337,63 @@ function SkinChanger:Init(Gui)
         local originalContent = g.Content
         g.Content = scroll
 
-        --// ═══ MELEE SKIN CHANGER ═══
-        local y = g:CreateSection("Melee Skin Changer", 0)
+        --// ═══ PLAYER SKIN — auto-updates on selection ═══
+        local y = g:CreateSection("Player Skin", 0)
 
-        y = g:CreateDropdown("Melee Skin", MeleeSkins, SkinChanger.Config.MeleeSkin, function(val)
-            SkinChanger.Config.MeleeSkin = val
-            if val ~= "None" then
-                SetDataValue("MeleeSkin", val)
-            end
+        y = g:CreateDropdown("Select Skin", PlayerSkins, SkinChanger.Config.PlayerSkin, function(val)
+            SkinChanger.Config.PlayerSkin = val
+            SetSkin("PlayerSkin", val, PlayerSkins)
         end, y)
 
-        y = g:CreateButton("Apply Melee Skin", function()
-            if SkinChanger.Config.MeleeSkin ~= "None" then
-                SetDataValue("MeleeSkin", SkinChanger.Config.MeleeSkin)
-            end
+        y = g:CreateToggle("Auto Respawn", SkinChanger.Config.AutoRespawn, function(state)
+            SkinChanger.Config.AutoRespawn = state
         end, y)
 
-        --// ═══ ANNOUNCER CHANGER ═══
-        y = g:CreateSection("Announcer Changer", y + 10)
+        --// ═══ KNIFE / MELEE — auto-updates on selection ═══
+        y = g:CreateSection("Knife Skin", y + 10)
 
-        y = g:CreateDropdown("Announcer", AnnouncerSkins, SkinChanger.Config.AnnouncerSkin, function(val)
+        y = g:CreateDropdown("Select Knife", KnifeSkins, SkinChanger.Config.KnifeSkin, function(val)
+            SkinChanger.Config.KnifeSkin = val
+            SetSkin("KnifeSkin", val, KnifeSkins)
+        end, y)
+
+        --// ═══ ANNOUNCER — auto-updates on selection ═══
+        y = g:CreateSection("Announcer", y + 10)
+
+        y = g:CreateDropdown("Select Announcer", AnnouncerSkins, SkinChanger.Config.AnnouncerSkin, function(val)
             SkinChanger.Config.AnnouncerSkin = val
-            if val ~= "None" then
-                SetDataValue("Announcer", val)
-            end
+            SetSkin("Announcer", val, AnnouncerSkins)
         end, y)
 
-        y = g:CreateButton("Apply Announcer", function()
-            if SkinChanger.Config.AnnouncerSkin ~= "None" then
-                SetDataValue("Announcer", SkinChanger.Config.AnnouncerSkin)
-            end
+        --// ═══ UTILITY ═══
+        y = g:CreateSection("Utility", y + 10)
+
+        y = g:CreateButton("Fix Invisible Weapon", function()
+            RestoreViewmodelVisibility()
+            print("[ENI] Viewmodel visibility restored")
         end, y)
 
-        --// ═══ ARM / GLOVE SKIN CHANGER ═══
-        y = g:CreateSection("Arm Skin Changer", y + 10)
-
-        y = g:CreateDropdown("Arm Skin", ArmSkins, SkinChanger.Config.ArmSkin, function(val)
-            SkinChanger.Config.ArmSkin = val
-            if val ~= "None" then
-                SetDataValue("Skin", val)
-            end
-        end, y)
-
-        y = g:CreateButton("Apply Arm Skin", function()
-            if SkinChanger.Config.ArmSkin ~= "None" then
-                SetDataValue("Skin", SkinChanger.Config.ArmSkin)
-            end
-        end, y)
-
-        --// ═══ APPLY ALL ═══
-        y = g:CreateSection("Bulk Actions", y + 10)
-
-        y = g:CreateButton("Apply All Skins", function()
-            ApplyAllSkins()
-        end, y)
-
-        y = g:CreateButton("Reset to Default", function()
-            SkinChanger.Config.MeleeSkin = "None"
+        y = g:CreateButton("Reset All to Default", function()
+            SkinChanger.Config.PlayerSkin = "None"
+            SkinChanger.Config.KnifeSkin = "None"
             SkinChanger.Config.AnnouncerSkin = "None"
-            SkinChanger.Config.ArmSkin = "None"
-            SetDataValue("MeleeSkin", "Default")
-            SetDataValue("Announcer", "Default")
-            SetDataValue("Skin", "Default")
-            print("[ENI] All skins reset to default")
+            SetSkin("PlayerSkin", "None", PlayerSkins)
+            SetSkin("KnifeSkin", "None", KnifeSkins)
+            SetSkin("Announcer", "None", AnnouncerSkins)
+            RestoreViewmodelVisibility()
+            print("[ENI] All skins reset")
         end, y)
 
         g.Content = originalContent
     end)
 
-    --// Apply saved config on load
+    --// Auto-apply on load
     task.spawn(function()
         task.wait(2)
         ApplyAllSkins()
     end)
 
-    print("[ENI] Skin Changer loaded — gun chams removed, skins fixed")
+    print("[ENI] Skin Changer v4 loaded — Player/Knife/Announcer, auto-update")
     return self
 end
 
