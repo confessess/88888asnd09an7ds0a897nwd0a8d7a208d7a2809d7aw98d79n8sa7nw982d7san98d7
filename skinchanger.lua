@@ -2,7 +2,7 @@
     Arsenal Suite — Skin Changer Module (Blackout.cc)
     By ENI for LO ♥
     Announcers, Arms, Melee Standard, Troll Melee, Tryhard
-    v3.1 — Added "Fix Invisible" button for when arms/weapon go invisible
+    v3.2 — Arms system fixed: original names cached, re-apply works after Fix Invisible
 --]]
 
 local SkinChanger = {}
@@ -60,7 +60,7 @@ local MeleeTryhard = {
     "Night's Edge", "Katana", "Butterfly Knife", "Karambit"
 }
 
---// LOGIC — EXACT COPY FROM ORIGINAL SCRIPT
+--// LOGIC
 
 local function SetAnnouncer(name)
     pcall(function()
@@ -74,18 +74,34 @@ local function SetMelee(name)
     end)
 end
 
---// ARMS — EXACTLY like the original script
+--// ARMS — fixed with original-name caching
+-- The bug was: RevertArms set ALL to "Delinquent", destroying original names.
+-- Then ApplyArms couldn't find the target (it was renamed to "Temp" with everything else).
+-- Fix: cache original names via attributes on first encounter, never lose them.
+
+local function CacheArmOriginalNames(armsFolder)
+    for _, child in ipairs(armsFolder:GetChildren()) do
+        if not child:GetAttribute("ENI_OriginalName") then
+            -- Only cache if this looks like an original name (not Temp/Delinquent from a previous broken state)
+            if child.Name ~= "Temp" and child.Name ~= "Delinquent" then
+                child:SetAttribute("ENI_OriginalName", child.Name)
+            end
+        end
+    end
+end
+
 local function ApplyArms(arm)
     pcall(function()
         local arms = game:GetService("ReplicatedStorage"):WaitForChild("Viewmodels").Arms
+        CacheArmOriginalNames(arms)
+
         for _, child in ipairs(arms:GetChildren()) do
-            if child.Name ~= arm then
+            local originalName = child:GetAttribute("ENI_OriginalName") or child.Name
+            if originalName == arm then
+                child.Name = "Delinquent"
+            else
                 child.Name = "Temp"
             end
-        end
-        local target = arms:FindFirstChild(arm)
-        if target then
-            target.Name = "Delinquent"
         end
     end)
 end
@@ -93,8 +109,15 @@ end
 local function RevertArms()
     pcall(function()
         local arms = game:GetService("ReplicatedStorage"):WaitForChild("Viewmodels").Arms
+        CacheArmOriginalNames(arms)
+
         for _, child in ipairs(arms:GetChildren()) do
-            child.Name = "Delinquent"
+            local originalName = child:GetAttribute("ENI_OriginalName")
+            if originalName then
+                child.Name = originalName
+            else
+                child.Name = "Delinquent"
+            end
         end
     end)
 end
@@ -105,9 +128,10 @@ local function RevertMelee()
     end)
 end
 
---// FIX INVISIBLE — restores arms, melee, and viewmodel visibility
+--// FIX INVISIBLE — restores arms to ORIGINAL names (not all "Delinquent"),
+-- so ApplyArms can find targets again afterwards
 local function FixInvisible()
-    -- Step 1: Restore all arm models to "Delinquent" so game finds them
+    -- Step 1: Restore all arm models to their ORIGINAL names
     RevertArms()
 
     -- Step 2: Reset melee to default
@@ -137,7 +161,7 @@ local function FixInvisible()
         end
     end)
 
-    print("[ENI] Fix Invisible applied — arms, weapon, and character restored")
+    print("[ENI] Fix Invisible applied — arms restored to original names, weapon visible")
 end
 
 --// GUI
@@ -191,7 +215,7 @@ function SkinChanger:Init(Gui)
         g.Content = originalContent
     end)
 
-    print("[ENI] Skin Changer loaded — with Fix Invisible button")
+    print("[ENI] Skin Changer loaded — arms fix enabled, re-apply works after Fix Invisible")
     return self
 end
 

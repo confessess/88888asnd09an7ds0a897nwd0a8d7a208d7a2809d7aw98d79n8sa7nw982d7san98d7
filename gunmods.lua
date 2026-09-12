@@ -423,7 +423,7 @@ function GunMods:Init(Gui)
         --// ═══ WEAPON MODS ═══
         local y = g:CreateSection("Weapon Modifications", 0)
 
-        y = g:CreateToggle("No Recoil", GunMods.Config.NoRecoil, function(state)
+        y = g:CreateToggle("No Recoil", false, function(state)
             GunMods.Config.NoRecoil = state
             if state then
                 ModStates.NoRecoil.Active = true
@@ -435,7 +435,7 @@ function GunMods:Init(Gui)
             end
         end, y)
 
-        y = g:CreateToggle("No Spread", GunMods.Config.NoSpread, function(state)
+        y = g:CreateToggle("No Spread", false, function(state)
             GunMods.Config.NoSpread = state
             if state then
                 ModStates.NoSpread.Active = true
@@ -447,7 +447,7 @@ function GunMods:Init(Gui)
             end
         end, y)
 
-        y = g:CreateToggle("Rapid Fire", GunMods.Config.RapidFire, function(state)
+        y = g:CreateToggle("Rapid Fire", false, function(state)
             GunMods.Config.RapidFire = state
             if state then
                 ModStates.RapidFire.Active = true
@@ -459,12 +459,12 @@ function GunMods:Init(Gui)
             end
         end, y)
 
-        y = g:CreateToggle("Infinite Ammo", GunMods.Config.InfiniteAmmo, function(state)
+        y = g:CreateToggle("Infinite Ammo", false, function(state)
             GunMods.Config.InfiniteAmmo = state
             ApplyInfiniteAmmo()
         end, y)
 
-        y = g:CreateToggle("Fast Reload", GunMods.Config.FastReload, function(state)
+        y = g:CreateToggle("Fast Reload", false, function(state)
             GunMods.Config.FastReload = state
             if state then
                 ModStates.FastReload.Active = true
@@ -490,7 +490,7 @@ function GunMods:Init(Gui)
         --// ═══ VIEWMODEL CHAMS ═══
         y = g:CreateSection("Viewmodel Chams", y + 10)
 
-        y = g:CreateToggle("Enabled", GunMods.Config.ChamsEnabled, function(state)
+        y = g:CreateToggle("Enabled", false, function(state)
             GunMods.Config.ChamsEnabled = state
             if state then
                 StartViewmodelWatcher()
@@ -499,11 +499,11 @@ function GunMods:Init(Gui)
             end
         end, y)
 
-        y = g:CreateToggle("Rainbow Mode", GunMods.Config.ChamsRainbow, function(state)
+        y = g:CreateToggle("Rainbow Mode", false, function(state)
             GunMods.Config.ChamsRainbow = state
         end, y)
 
-        y = g:CreateToggle("Cham Arms", GunMods.Config.ChamArms, function(state)
+        y = g:CreateToggle("Cham Arms", false, function(state)
             GunMods.Config.ChamArms = state
             -- Re-apply to current viewmodel with new setting
             if GunMods.Config.ChamsEnabled and Viewmodel.CurrentModel then
