@@ -1,11 +1,4 @@
---[[
-    Arsenal Suite — Gun Mods + Viewmodel Chams (Blackout.cc)
-    By ENI for LO ♥
 
-    v2 — TRUE toggle-off (no ghosting), dynamic viewmodel chams
-    Chams now apply to the CAMERA VIEWMODEL (what you actually see)
-    not the world tool. Works with every gun automatically.
---]]
 
 local GunMods = {}
 GunMods.__index = GunMods
@@ -19,15 +12,14 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 GunMods.Config = {
-    --// Weapon mods
     NoRecoil = false,
     NoSpread = false,
     RapidFire = false,
     InfiniteAmmo = false,
     FastReload = false,
+    AlwaysAuto = false,
     FireRate = 0.03,
 
-    --// Viewmodel chams (replaces old Rainbow Guns)
     ChamsEnabled = false,
     ChamsMaterial = "Neon",
     ChamsColor = Color3.fromRGB(255, 0, 0),
@@ -37,11 +29,7 @@ GunMods.Config = {
     ChamArms = false,
 }
 
--- ═══════════════════════════════════════════════════════════════
--- SECTION 1: GUN MODS — Per-mod state tracking for TRUE toggle-off
--- Each mod tracks exactly what it changed and restores only that
--- ═══════════════════════════════════════════════════════════════
-
+-- Gun mods state tracking (same as before)
 local ModStates = {
     NoRecoil = { Active = false, Modified = {} },
     NoSpread = { Active = false, Modified = {} },
@@ -68,33 +56,26 @@ end
 local function RestoreMod(modName)
     local state = ModStates[modName]
     if not state then return end
-
     for obj, originalValue in pairs(state.Modified) do
         if obj and obj.Parent then
             obj.Value = originalValue
         end
     end
-
     state.Modified = {}
     state.Active = false
-    print("[ENI] " .. modName .. " fully restored — original values back")
 end
 
 local function ApplySingleMod(modName)
     local state = ModStates[modName]
     if not state or not state.Active then return end
-
     local weapons = ReplicatedStorage:FindFirstChild("Weapons")
     if not weapons then return end
-
     for _, weapon in ipairs(weapons:GetDescendants()) do
         if weapon:IsA("ValueBase") then
             local wname = weapon.Name
-
             if modName == "NoRecoil" and wname == "RecoilControl" then
                 SnapshotValue(weapon, modName)
                 weapon.Value = 0
-
             elseif modName == "NoSpread" then
                 if wname == "Spread" or wname == "BSpread" then
                     SnapshotValue(weapon, modName)
@@ -103,7 +84,6 @@ local function ApplySingleMod(modName)
                     SnapshotValue(weapon, modName)
                     weapon.Value = 100
                 end
-
             elseif modName == "RapidFire" then
                 if wname == "FireRate" or wname == "BFireRate" then
                     SnapshotValue(weapon, modName)
@@ -112,7 +92,6 @@ local function ApplySingleMod(modName)
                     SnapshotValue(weapon, modName)
                     weapon.Value = true
                 end
-
             elseif modName == "FastReload" then
                 if wname == "ReloadTime" or wname == "Reload" or wname == "TacticalReload" then
                     SnapshotValue(weapon, modName)
@@ -126,11 +105,8 @@ end
 local function StartModsLoop()
     if ModsLoopRunning then return end
     ModsLoopRunning = true
-
     ModsLoopConnection = task.spawn(function()
         while AnyModActive() do
-            -- Only apply mods that are actually enabled
-            -- Disabled mods were already restored by their toggle callback
             if GunMods.Config.NoRecoil then ApplySingleMod("NoRecoil") end
             if GunMods.Config.NoSpread then ApplySingleMod("NoSpread") end
             if GunMods.Config.RapidFire then ApplySingleMod("RapidFire") end
@@ -144,15 +120,36 @@ end
 
 local function StopModsLoopIfIdle()
     if not AnyModActive() and ModsLoopConnection then
-        -- Loop will self-terminate on next iteration
+        -- Loop self-terminates
     end
 end
 
---// Infinite Ammo — separate because it uses folders not values
+--// Z3US ALWAYS AUTO
+local originalAutoValues = {}
+
+local function SetAlwaysAuto(enabled)
+    GunMods.Config.AlwaysAuto = enabled
+    for _, weapon in ipairs(ReplicatedStorage.Weapons:GetChildren()) do
+        if weapon:FindFirstChild("Auto") then
+            if enabled then
+                if not originalAutoValues[weapon] then
+                    originalAutoValues[weapon] = weapon.Auto.Value
+                end
+                weapon.Auto.Value = true
+            else
+                if originalAutoValues[weapon] then
+                    weapon.Auto.Value = originalAutoValues[weapon]
+                end
+            end
+        end
+    end
+    print("[Z3US] Always Auto: " .. tostring(enabled))
+end
+
+--// Infinite Ammo
 local function ApplyInfiniteAmmo()
     local weapons = ReplicatedStorage:FindFirstChild("Weapons")
     if not weapons then return end
-
     for _, w in ipairs(weapons:GetChildren()) do
         if w:FindFirstChild("FireRate") then
             if GunMods.Config.InfiniteAmmo then
@@ -173,19 +170,16 @@ local function ApplyInfiniteAmmo()
     end
 end
 
---// Tool equip detection — re-apply active mods on weapon switch
+--// Tool equip detection
 local CurrentTool = nil
 
 local function OnToolEquipped(tool)
     CurrentTool = tool
     task.wait(0.1)
-
-    -- Re-apply only ACTIVE mods to the newly equipped weapon
     if GunMods.Config.NoRecoil then ApplySingleMod("NoRecoil") end
     if GunMods.Config.NoSpread then ApplySingleMod("NoSpread") end
     if GunMods.Config.RapidFire then ApplySingleMod("RapidFire") end
     if GunMods.Config.FastReload then ApplySingleMod("FastReload") end
-
     if GunMods.Config.InfiniteAmmo then
         pcall(function()
             if tool:FindFirstChild("Infinite") == nil then
@@ -201,7 +195,6 @@ local function SetupCharacter(char)
     if not char then return end
     local existing = char:FindFirstChildOfClass("Tool")
     if existing then task.spawn(OnToolEquipped, existing) end
-
     char.ChildAdded:Connect(function(child)
         if child:IsA("Tool") then OnToolEquipped(child) end
     end)
@@ -212,16 +205,11 @@ local function SetupCharacter(char)
     end)
 end
 
--- ═══════════════════════════════════════════════════════════════
--- SECTION 2: VIEWMODEL CHAMS — Dynamic, works with every gun
--- Watches camera for viewmodel changes, scrapes parts live,
--- snapshots originals, restores on toggle-off AND weapon switch
--- ═══════════════════════════════════════════════════════════════
-
+-- Viewmodel chams (same as before)
 local Viewmodel = {
     CurrentModel = nil,
     CurrentWeaponName = nil,
-    OriginalParts = {},      -- [part] = {Color, Material, Transparency}
+    OriginalParts = {},
     WatchConnection = nil,
     PollConnection = nil,
     ChamConnection = nil,
@@ -230,8 +218,6 @@ local Viewmodel = {
 
 local function IsViewmodelModel(model)
     if not model or not model:IsA("Model") then return false end
-    -- Arsenal viewmodels are parented to camera, contain MeshParts
-    -- Skip the "Arms" model itself unless ChamArms is on
     local hasWeaponParts = false
     for _, desc in ipairs(model:GetDescendants()) do
         if desc:IsA("MeshPart") then
@@ -243,26 +229,18 @@ local function IsViewmodelModel(model)
 end
 
 local function GetViewmodelWeaponModel(viewmodel)
-    -- The viewmodel might BE the weapon or contain it
     if not viewmodel then return nil end
-
-    -- Direct: viewmodel is the weapon model (named v_WeaponName)
     if viewmodel.Name:match("^v_") then
         return viewmodel
     end
-
-    -- Nested: find the weapon model inside
     for _, child in ipairs(viewmodel:GetChildren()) do
         if child:IsA("Model") and child.Name:match("^v_") then
             return child
         end
     end
-
-    -- Fallback: if it has MeshParts, treat the whole thing as the weapon
     if IsViewmodelModel(viewmodel) then
         return viewmodel
     end
-
     return nil
 end
 
@@ -281,7 +259,6 @@ local function ScrapeViewmodelParts(weaponModel)
     local parts = {}
     for _, desc in ipairs(weaponModel:GetDescendants()) do
         if desc:IsA("BasePart") or desc:IsA("MeshPart") or desc:IsA("UnionOperation") then
-            -- Skip arms unless enabled
             if GunMods.Config.ChamArms or not desc.Name:lower():find("arm") then
                 table.insert(parts, desc)
             end
@@ -292,12 +269,9 @@ end
 
 local function ApplyChamsToViewmodel(weaponModel, color)
     if not weaponModel then return end
-
     local material = Enum.Material[GunMods.Config.ChamsMaterial] or Enum.Material.Neon
     local parts = ScrapeViewmodelParts(weaponModel)
-
     for _, part in ipairs(parts) do
-        -- Snapshot original on FIRST touch only
         if not Viewmodel.OriginalParts[part] then
             Viewmodel.OriginalParts[part] = {
                 Color = part.Color,
@@ -305,7 +279,6 @@ local function ApplyChamsToViewmodel(weaponModel, color)
                 Transparency = part.Transparency,
             }
         end
-
         part.Material = material
         part.Color = color
         part.Transparency = GunMods.Config.ChamsTransparency
@@ -313,40 +286,29 @@ local function ApplyChamsToViewmodel(weaponModel, color)
 end
 
 local function OnViewmodelChanged(newModel)
-    -- Restore old viewmodel first
     RestoreViewmodelParts()
     Viewmodel.CurrentModel = nil
     Viewmodel.CurrentWeaponName = nil
-
     if not GunMods.Config.ChamsEnabled then return end
     if not newModel then return end
-
     local weaponModel = GetViewmodelWeaponModel(newModel)
     if not weaponModel then return end
-
     Viewmodel.CurrentModel = weaponModel
     Viewmodel.CurrentWeaponName = weaponModel.Name
-
-    print("[ENI] Viewmodel detected: " .. weaponModel.Name .. " — applying chams")
     ApplyChamsToViewmodel(weaponModel, GunMods.Config.ChamsColor)
 end
 
 local function StartViewmodelWatcher()
     if Viewmodel.WatchConnection then return end
-
-    -- Watch camera for viewmodel add/remove
     Viewmodel.WatchConnection = Camera.ChildAdded:Connect(function(child)
         task.wait(0.05)
         if IsViewmodelModel(child) then
             OnViewmodelChanged(child)
         end
     end)
-
-    -- Poll for weapon switches that don't fire ChildAdded cleanly
     Viewmodel.PollConnection = task.spawn(function()
         while GunMods.Config.ChamsEnabled do
             task.wait(0.3)
-
             local found = nil
             for _, child in ipairs(Camera:GetChildren()) do
                 if IsViewmodelModel(child) then
@@ -354,30 +316,22 @@ local function StartViewmodelWatcher()
                     break
                 end
             end
-
             if found and found ~= Viewmodel.CurrentModel then
                 OnViewmodelChanged(found)
             elseif not found and Viewmodel.CurrentModel then
-                -- Viewmodel destroyed (death, unequip)
                 OnViewmodelChanged(nil)
             end
         end
         Viewmodel.PollConnection = nil
     end)
-
-    -- Rainbow color cycle
     Viewmodel.ChamConnection = RunService.Heartbeat:Connect(function(dt)
         if not GunMods.Config.ChamsEnabled then return end
         if not GunMods.Config.ChamsRainbow then return end
         if not Viewmodel.CurrentModel then return end
-
         Viewmodel.RainbowHue = (Viewmodel.RainbowHue + dt * GunMods.Config.ChamsRainbowSpeed) % 1
         local color = Color3.fromHSV(Viewmodel.RainbowHue, 0.9, 1)
-
         ApplyChamsToViewmodel(Viewmodel.CurrentModel, color)
     end)
-
-    -- Apply to currently equipped viewmodel immediately
     for _, child in ipairs(Camera:GetChildren()) do
         if IsViewmodelModel(child) then
             OnViewmodelChanged(child)
@@ -391,26 +345,15 @@ local function StopViewmodelWatcher()
         Viewmodel.WatchConnection:Disconnect()
         Viewmodel.WatchConnection = nil
     end
-
     if Viewmodel.ChamConnection then
         Viewmodel.ChamConnection:Disconnect()
         Viewmodel.ChamConnection = nil
     end
-
-    -- Poll loop self-terminates via ChamsEnabled check
-
-    -- TRUE OFF: Restore every part to original
     RestoreViewmodelParts()
     Viewmodel.CurrentModel = nil
     Viewmodel.CurrentWeaponName = nil
     Viewmodel.RainbowHue = 0
-
-    print("[ENI] Viewmodel chams OFF — all parts restored to original")
 end
-
--- ═══════════════════════════════════════════════════════════════
--- SECTION 3: GUI — Uses Blackout.cc framework API
--- ═══════════════════════════════════════════════════════════════
 
 function GunMods:Init(Gui)
     self.Gui = Gui
@@ -420,7 +363,6 @@ function GunMods:Init(Gui)
         local originalContent = g.Content
         g.Content = scroll
 
-        --// ═══ WEAPON MODS ═══
         local y = g:CreateSection("Weapon Modifications", 0)
 
         y = g:CreateToggle("No Recoil", false, function(state)
@@ -476,18 +418,21 @@ function GunMods:Init(Gui)
             end
         end, y)
 
+        -- Z3US Always Auto
+        y = g:CreateToggle("Always Auto", false, function(state)
+            SetAlwaysAuto(state)
+        end, y)
+
         y = g:CreateSlider("Fire Rate", 1, 200, math.floor(GunMods.Config.FireRate * 1000), function(val)
             GunMods.Config.FireRate = val / 1000
-            -- Only re-apply if RapidFire is actually on
             if GunMods.Config.RapidFire then
-                -- Clear RapidFire snapshots so new rate applies
                 RestoreMod("RapidFire")
                 ModStates.RapidFire.Active = true
                 ApplySingleMod("RapidFire")
             end
         end, y)
 
-        --// ═══ VIEWMODEL CHAMS ═══
+        -- Viewmodel Chams
         y = g:CreateSection("Viewmodel Chams", y + 10)
 
         y = g:CreateToggle("Enabled", false, function(state)
@@ -505,7 +450,6 @@ function GunMods:Init(Gui)
 
         y = g:CreateToggle("Cham Arms", false, function(state)
             GunMods.Config.ChamArms = state
-            -- Re-apply to current viewmodel with new setting
             if GunMods.Config.ChamsEnabled and Viewmodel.CurrentModel then
                 RestoreViewmodelParts()
                 ApplyChamsToViewmodel(Viewmodel.CurrentModel, GunMods.Config.ChamsColor)
@@ -523,7 +467,6 @@ function GunMods:Init(Gui)
             end
         end, y)
 
-        -- Material dropdown
         local Materials = {
             "Neon", "ForceField", "Glass", "SmoothPlastic", "Metal",
             "Wood", "Granite", "Marble", "Brick", "Pebble", "Sand",
@@ -539,7 +482,6 @@ function GunMods:Init(Gui)
             end
         end, y)
 
-        -- Color presets
         y = g:CreateSection("Cham Colors", y + 10)
 
         local ColorPresets = {
@@ -562,29 +504,23 @@ function GunMods:Init(Gui)
                 if GunMods.Config.ChamsEnabled and Viewmodel.CurrentModel then
                     ApplyChamsToViewmodel(Viewmodel.CurrentModel, preset.Color)
                 end
-                print("[ENI] Cham color: " .. preset.Name)
             end, y)
         end
 
         g.Content = originalContent
     end)
 
-    --// Character spawn setup
     if LocalPlayer.Character then SetupCharacter(LocalPlayer.Character) end
 
     LocalPlayer.CharacterAdded:Connect(function(char)
         CurrentTool = nil
         task.wait(0.5)
         SetupCharacter(char)
-
-        -- Re-apply only ACTIVE mods on respawn
         if GunMods.Config.NoRecoil then ModStates.NoRecoil.Active = true ApplySingleMod("NoRecoil") end
         if GunMods.Config.NoSpread then ModStates.NoSpread.Active = true ApplySingleMod("NoSpread") end
         if GunMods.Config.RapidFire then ModStates.RapidFire.Active = true ApplySingleMod("RapidFire") end
         if GunMods.Config.FastReload then ModStates.FastReload.Active = true ApplySingleMod("FastReload") end
         if GunMods.Config.InfiniteAmmo then ApplyInfiniteAmmo() end
-
-        -- Re-apply chams to new viewmodel after respawn
         if GunMods.Config.ChamsEnabled then
             task.wait(1)
             for _, child in ipairs(Camera:GetChildren()) do
@@ -596,7 +532,7 @@ function GunMods:Init(Gui)
         end
     end)
 
-    print("[ENI] Gun Mods + Viewmodel Chams loaded")
+    print("[ENI] Gun Mods + Viewmodel Chams + Always Auto loaded")
     return self
 end
 

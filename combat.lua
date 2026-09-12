@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — Combat Module (Blackout.cc)
     By ENI for LO ♥
-    Aimbot, Silent Aim, Hitbox Expander, Kill All
+    v3 — Z3US Hitsounds + Kill All added
 --]]
 
 local Combat = {}
@@ -9,437 +9,256 @@ Combat.__index = Combat
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local SoundService = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 Combat.Config = {
     AimbotEnabled = false,
+    AimbotFOV = 150,
+    AimbotSmoothness = 1,
+    AimbotTeamCheck = true,
+    AimbotWallCheck = false,
+    AimbotHitpart = "Head",
     SilentAimEnabled = false,
-    HitboxEnabled = false,
-    TeamCheck = true,
-    WallCheck = false,
-    FOV = 25,
-    HitPart = "Head",
-    HitboxSize = 13,
-    HeadHBSize = 20,
-    AimKey = Enum.UserInputType.MouseButton2,
-    SilentAimFOV = 150,
-    KillAllEnabled = false,
-    KillAllDelay = 0.5,
-    KillAllRange = 500
+    SilentAimFOV = 100,
+    SilentAimHitChance = 100,
+    HitboxExpander = false,
+    HitboxSize = 5,
+
+    -- Z3US Hitsounds
+    HitsoundsEnabled = false,
+    Hitsound = "Skeet.cc",
+    HitsoundVolume = 1,
+
+    -- Z3US Kill All
+    KillAll = false,
 }
 
---// Drawing FOV Circle
-local FOV_Circle = Drawing.new("Circle")
-FOV_Circle.Color = Color3.fromRGB(255, 255, 255)
-FOV_Circle.Thickness = 1
-FOV_Circle.Filled = false
-FOV_Circle.NumSides = 100
-FOV_Circle.Transparency = 1
-FOV_Circle.Radius = 25
-FOV_Circle.Visible = false
-
---// Silent Aim FOV Circle
-local SilentFOV_Circle = Drawing.new("Circle")
-SilentFOV_Circle.Color = Color3.fromRGB(255, 60, 60)
-SilentFOV_Circle.Thickness = 1
-SilentFOV_Circle.Filled = false
-SilentFOV_Circle.NumSides = 100
-SilentFOV_Circle.Transparency = 0.5
-SilentFOV_Circle.Radius = 150
-SilentFOV_Circle.Visible = false
-
---// Wallcheck function
+--// Aimbot logic
 local function IsVisible(targetPart)
-    if not Combat.Config.WallCheck then return true end
-    if not targetPart then return false end
-
+    if not Combat.Config.AimbotWallCheck then return true end
+    local char = LocalPlayer.Character
+    if not char then return false end
     local origin = Camera.CFrame.Position
     local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
-
     local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
+    raycastParams.FilterDescendantsInstances = {char}
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.IgnoreWater = true
-
     local result = Workspace:Raycast(origin, direction, raycastParams)
-
-    if result == nil then return true end
-    if result.Instance and result.Instance:IsDescendantOf(targetPart.Parent) then
+    if result and result.Instance:IsDescendantOf(targetPart.Parent) then
         return true
     end
-
     return false
 end
 
---// Aimbot logic
-local IsAiming = false
-
-local function GetClosestEnemy()
-    local closestDist = Combat.Config.FOV
-    local closestTarget = nil
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if Combat.Config.TeamCheck and plr.Team == LocalPlayer.Team then continue end
-
-        local char = plr.Character
-        if not char then continue end
-        local head = char:FindFirstChild("Head")
-        if not head then continue end
-
-        if not IsVisible(head) then continue end
-
-        local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
-        if not onScreen then continue end
-
-        local mousePos = UserInputService:GetMouseLocation()
-        local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
-
-        if dist < closestDist then
-            closestDist = dist
-            closestTarget = plr
-        end
-    end
-
-    return closestTarget
-end
-
---// Silent Aim — runs on Actor for detection bypass
-local SilentAimRunning = false
-
-local function StartSilentAim()
-    if SilentAimRunning then return end
-    SilentAimRunning = true
-
-    local actor = getactors()[1]
-    if not actor then
-        warn("[ENI] No actor found for silent aim — executor may not support getactors()")
-        SilentAimRunning = false
-        return
-    end
-
-    run_on_actor(actor, [=[
-        local Players = game:GetService("Players")
-        local RunService = game:GetService("RunService")
-        local Workspace = game:GetService("Workspace")
-        local LocalPlayer = Players.LocalPlayer
-
-        local target = nil
-
-        getgenv().__SilentAimConfig = getgenv().__SilentAimConfig or {}
-        local config = getgenv().__SilentAimConfig
-
-        local function isVisible(targetPart)
-            local origin = Workspace.CurrentCamera.CFrame
-            local params = RaycastParams.new()
-            params.FilterType = Enum.RaycastFilterType.Exclude
-            params.FilterDescendantsInstances = {LocalPlayer.Character}
-            params.IgnoreWater = true
-
-            local direction = (targetPart.Position - origin.Position)
-            local result = Workspace:Raycast(origin.Position, direction, params)
-
-            if result then
-                return Players:GetPlayerFromCharacter(result.Instance:FindFirstAncestorOfClass("Model")) ~= nil
-            else
-                return true
-            end
-        end
-
-        local function GetClosestPlayer()
-            local closestDistance = math.huge
-            local closest = nil
-            local camera = Workspace.CurrentCamera
-
-            for _, v in pairs(Players:GetPlayers()) do
-                if v == LocalPlayer then continue end
-
-                local char = v.Character
-                if not char then continue end
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if not hrp then continue end
-                local hum = char:FindFirstChild("Humanoid")
-                if not hum or hum.Health <= 0 then continue end
-
-                if config.TeamCheck ~= false then
-                    local myteam = LocalPlayer.Team and LocalPlayer.Team.Name
-                    local theirTeam = v.Team and v.Team.Name
-                    if myteam == theirTeam then continue end
-                end
-
-                local head = char:FindFirstChild("Head")
-                if not head then continue end
-
-                local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
-                if onScreen then
-                    local fov = config.FOV or 150
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - camera.ViewportSize / 2).Magnitude
-                    if distance < closestDistance and distance < fov then
-                        if not isVisible(head) then continue end
-                        closestDistance = distance
-                        closest = head
-                    end
-                end
-            end
-
-            return closest
-        end
-
-        RunService.RenderStepped:Connect(function()
-            if config.Enabled == false then return end
-            target = GetClosestPlayer()
-        end)
-
-        for i, v in pairs(getgc()) do
-            if type(v) == "function" and islclosure(v) then
-                if debug.info(v, "a") == 2 and #debug.getupvalues(v) == 2 and #debug.getconstants(v) == 17 and debug.info(v, "n"):len() <= 10 then
-                    local old
-                    old = hookfunction(v, function(p1, p2)
-                        if target and target.Position and config.Enabled ~= false then
-                            local mychar = LocalPlayer.Character
-                            if mychar then
-                                local head = mychar:FindFirstChild("Head")
-                                if head then
-                                    local direction = (target.Position - head.Position)
-                                    p1 = Ray.new(head.Position, direction)
-                                end
-                            end
-                        end
-                        return old(p1, p2)
-                    end)
-                end
-            end
-        end
-    ]=])
-end
-
-local function StopSilentAim()
-    SilentAimRunning = false
-    getgenv().__SilentAimConfig = getgenv().__SilentAimConfig or {}
-    getgenv().__SilentAimConfig.Enabled = false
-end
-
---// KILL ALL — FIXED with proper remote finding
-local KillAllConnection = nil
-local LastKillAll = 0
-
-local function FindDamageRemote()
-    -- Try common paths
-    local paths = {
-        ReplicatedStorage:FindFirstChild("Remotes"),
-        ReplicatedStorage:FindFirstChild("RemoteEvents"),
-        ReplicatedStorage:FindFirstChild("Events"),
-        ReplicatedStorage:FindFirstChild("wkspc"),
-    }
-
-    for _, path in ipairs(paths) do
-        if path then
-            -- Search for damage-related remotes
-            for _, child in ipairs(path:GetDescendants()) do
-                if child:IsA("RemoteEvent") then
-                    local name = child.Name:lower()
-                    if name:find("damage") or name:find("hit") or name:find("hurt") or name:find("kill") then
-                        return child
-                    end
-                end
-            end
-        end
-    end
-
-    -- Search all remotes in ReplicatedStorage
-    for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
-        if child:IsA("RemoteEvent") then
-            local name = child.Name:lower()
-            if name:find("damage") or name:find("hit") or name:find("hurt") or name:find("kill") then
-                return child
-            end
-        end
-    end
-
-    return nil
-end
-
-local function GetEnemiesInRange()
-    local enemies = {}
-    local myChar = LocalPlayer.Character
-    local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return enemies end
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if Combat.Config.TeamCheck and plr.Team == LocalPlayer.Team then continue end
-
-        local char = plr.Character
-        if not char then continue end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum then continue end
-        if hum.Health <= 0 then continue end
-
-        local dist = (myHrp.Position - hrp.Position).Magnitude
-        if dist <= Combat.Config.KillAllRange then
-            table.insert(enemies, {Player = plr, Character = char, Humanoid = hum, HRP = hrp, Distance = dist})
-        end
-    end
-
-    table.sort(enemies, function(a, b) return a.Distance < b.Distance end)
-    return enemies
-end
-
-local function KillAllOnce()
-    local now = tick()
-    if now - LastKillAll < Combat.Config.KillAllDelay then return end
-    LastKillAll = now
-
-    local enemies = GetEnemiesInRange()
-    if #enemies == 0 then return end
-
-    local damageRemote = FindDamageRemote()
-
-    for _, enemy in ipairs(enemies) do
-        pcall(function()
-            if damageRemote then
-                -- Try multiple argument patterns
-                damageRemote:FireServer(enemy.HRP.Position, enemy.HRP, enemy.Humanoid, 100)
-                task.wait()
-                damageRemote:FireServer(enemy.Humanoid, 100)
-                task.wait()
-                damageRemote:FireServer(enemy.Character, 100)
-            else
-                -- Fallback: directly reduce health (client-side, may not replicate)
-                enemy.Humanoid.Health = 0
-            end
-        end)
-    end
-end
-
-local function StartKillAll()
-    if KillAllConnection then return end
-    print("[ENI] Kill All started — range: " .. Combat.Config.KillAllRange .. ", delay: " .. Combat.Config.KillAllDelay)
-    KillAllConnection = RunService.Heartbeat:Connect(function()
-        if not Combat.Config.KillAllEnabled then
-            Combat:StopKillAll()
-            return
-        end
-        KillAllOnce()
-    end)
-end
-
-function Combat:StopKillAll()
-    if KillAllConnection then
-        KillAllConnection:Disconnect()
-        KillAllConnection = nil
-        print("[ENI] Kill All stopped")
-    end
-end
-
---// Input handlers
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Combat.Config.AimKey then
-        IsAiming = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Combat.Config.AimKey then
-        IsAiming = false
-    end
-end)
-
---// Main render loop
-RunService.RenderStepped:Connect(function()
+local function GetClosestPlayerToMouse()
+    local closest = nil
+    local shortestDistance = Combat.Config.AimbotFOV
     local mousePos = UserInputService:GetMouseLocation()
 
-    FOV_Circle.Position = Vector2.new(mousePos.X, mousePos.Y)
-    FOV_Circle.Radius = Combat.Config.FOV
-    FOV_Circle.Visible = Combat.Config.AimbotEnabled
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            if Combat.Config.AimbotTeamCheck and plr.Team == LocalPlayer.Team then
+                continue
+            end
+            local targetPart = plr.Character:FindFirstChild(Combat.Config.AimbotHitpart)
+            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+            if targetPart and humanoid and humanoid.Health > 0 then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if onScreen and IsVisible(targetPart) then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        closest = plr
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
 
-    SilentFOV_Circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    SilentFOV_Circle.Radius = Combat.Config.SilentAimFOV
-    SilentFOV_Circle.Visible = Combat.Config.SilentAimEnabled
+RunService.RenderStepped:Connect(function()
+    if not Combat.Config.AimbotEnabled then return end
+    if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
 
-    getgenv().__SilentAimConfig = {
-        Enabled = Combat.Config.SilentAimEnabled,
-        FOV = Combat.Config.SilentAimFOV,
-        TeamCheck = Combat.Config.TeamCheck
-    }
-
-    if Combat.Config.AimbotEnabled and IsAiming then
-        local target = GetClosestEnemy()
-        if target and target.Character and target.Character:FindFirstChild("Head") then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+    local target = GetClosestPlayerToMouse()
+    if target and target.Character then
+        local targetPart = target.Character:FindFirstChild(Combat.Config.AimbotHitpart)
+        if targetPart then
+            local targetPos = Camera:WorldToViewportPoint(targetPart.Position)
+            local mousePos = UserInputService:GetMouseLocation()
+            local moveX = (targetPos.X - mousePos.X) / Combat.Config.AimbotSmoothness
+            local moveY = (targetPos.Y - mousePos.Y) / Combat.Config.AimbotSmoothness
+            mousemoverel(moveX, moveY)
         end
     end
 end)
 
 --// Hitbox Expander
-local OriginalData = {}
+local HitboxConnection = nil
 
-local function ExpandHitboxes()
-    if not Combat.Config.HitboxEnabled then return end
-
+local function ExpandHitbox(size)
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if Combat.Config.TeamCheck and plr.Team == LocalPlayer.Team then continue end
-
-        local char = plr.Character
-        if not char then continue end
-
-        local partsToExpand = {"RightUpperLeg", "LeftUpperLeg", "HeadHB", "HumanoidRootPart"}
-
-        for _, partName in ipairs(partsToExpand) do
-            local part = char:FindFirstChild(partName)
-            if part and part:IsA("BasePart") then
-                if not OriginalData[part] then
-                    OriginalData[part] = {
-                        Size = part.Size,
-                        Transparency = part.Transparency
-                    }
-                end
-
-                local targetSize = (partName == "HeadHB") and
-                    Vector3.new(Combat.Config.HeadHBSize, Combat.Config.HeadHBSize, Combat.Config.HeadHBSize) or
-                    Vector3.new(Combat.Config.HitboxSize, Combat.Config.HitboxSize, Combat.Config.HitboxSize)
-
-                part.Size = targetSize
-                part.Transparency = 1
+        if plr ~= LocalPlayer and plr.Character then
+            if Combat.Config.AimbotTeamCheck and plr.Team == LocalPlayer.Team then
+                continue
+            end
+            local head = plr.Character:FindFirstChild("Head")
+            if head then
+                head.Size = Vector3.new(size, size, size)
+                head.Transparency = 0.7
+                head.CanCollide = false
             end
         end
     end
 end
 
-local function RestoreHitboxes()
-    for part, data in pairs(OriginalData) do
-        if part and part.Parent then
-            part.Size = data.Size
-            part.Transparency = data.Transparency
+local function ResetHitbox()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character then
+            local head = plr.Character:FindFirstChild("Head")
+            if head then
+                head.Size = Vector3.new(1.2, 0.6, 1.2)
+                head.Transparency = 0
+            end
         end
     end
-    OriginalData = {}
 end
 
-RunService.RenderStepped:Connect(function()
-    if Combat.Config.HitboxEnabled then
-        ExpandHitboxes()
+function Combat:SetHitboxExpander(state)
+    Combat.Config.HitboxExpander = state
+    if state then
+        HitboxConnection = RunService.Heartbeat:Connect(function()
+            ExpandHitbox(Combat.Config.HitboxSize)
+        end)
     else
-        RestoreHitboxes()
+        if HitboxConnection then
+            HitboxConnection:Disconnect()
+            HitboxConnection = nil
+        end
+        ResetHitbox()
+    end
+end
+
+--// Z3US HITSOUNDS
+local HitsoundList = {
+    ["None"] = "",
+    ["Skeet.cc"] = "rbxassetid://5447626464",
+    ["Neverlose"] = "rbxassetid://6607204501",
+    ["Baimware"] = "rbxassetid://6607339542",
+    ["Old Fatality"] = "rbxassetid://6607142036",
+    ["Rust"] = "rbxassetid://5043539486",
+    ["Bell"] = "rbxassetid://6534947240",
+    ["TF2"] = "rbxassetid://2868331684",
+    ["Among Us"] = "rbxassetid://5700183626",
+    ["Fortnite Headshot"] = "rbxassetid://2513174484",
+    ["Minecraft"] = "rbxassetid://4018616850",
+    ["Osu"] = "rbxassetid://7149255551",
+    ["TF2 Critical"] = "rbxassetid://296102734",
+    ["Bat"] = "rbxassetid://3333907347",
+    ["Call of Duty"] = "rbxassetid://5952120301",
+    ["Bruh"] = "rbxassetid://4275842574",
+    ["Crowbar"] = "rbxassetid://546410481",
+    ["Weeb"] = "rbxassetid://6442965016",
+    ["Steve"] = "rbxassetid://4965083997"
+}
+
+local function PlayHitsound()
+    if not Combat.Config.HitsoundsEnabled then return end
+    local soundId = HitsoundList[Combat.Config.Hitsound]
+    if not soundId or soundId == "" then return end
+    local sound = Instance.new("Sound")
+    sound.SoundId = soundId
+    sound.Volume = Combat.Config.HitsoundVolume
+    sound.Parent = SoundService
+    sound:Play()
+    sound.Ended:Connect(function() sound:Destroy() end)
+end
+
+local function SetupHitsounds()
+    local scoreFolder = LocalPlayer:WaitForChild("ScoreFolder")
+    local damageValue = scoreFolder:WaitForChild("Damage")
+    damageValue:GetPropertyChangedSignal("Value"):Connect(function(newValue)
+        if newValue == 0 then return end
+        PlayHitsound()
+    end)
+    LocalPlayer.ChildRemoved:Connect(function(child)
+        if child.Name == "ScoreFolder" then
+            task.wait(3)
+            pcall(SetupHitsounds)
+        end
+    end)
+end
+
+task.spawn(function()
+    local success = pcall(SetupHitsounds)
+    if not success then
+        task.wait(5)
+        pcall(SetupHitsounds)
     end
 end)
 
-Players.PlayerRemoving:Connect(function(plr)
-    if plr.Character then
-        for _, part in ipairs(plr.Character:GetDescendants()) do
-            if OriginalData[part] then
-                OriginalData[part] = nil
+--// Z3US KILL ALL
+local killAllConnection = nil
+local killAllActive = false
+
+local function GetClosestEnemy()
+    local closest, closestDist = nil, math.huge
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team then
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+            if root and humanoid and humanoid.Health > 0 then
+                local dist = (root.Position - myRoot.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = player
+                end
             end
         end
     end
-end)
+    return closest
+end
+
+local function KillAllTick()
+    if not killAllActive then return end
+    local target = GetClosestEnemy()
+    if target and target.Character then
+        local targetRoot = target.Character:FindFirstChild("HumanoidRootPart")
+        local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot and myRoot then
+            myRoot.CFrame = CFrame.new(targetRoot.Position - targetRoot.CFrame.LookVector * 5)
+            local camera = Workspace.CurrentCamera
+            local direction = (targetRoot.Position - camera.CFrame.Position).unit
+            camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + direction)
+        end
+    end
+end
+
+local function SetKillAll(enabled)
+    killAllActive = enabled
+    Combat.Config.KillAll = enabled
+    if enabled then
+        if killAllConnection then killAllConnection:Disconnect() end
+        killAllConnection = RunService.Heartbeat:Connect(KillAllTick)
+        print("[Z3US] Kill All enabled")
+    else
+        if killAllConnection then
+            killAllConnection:Disconnect()
+            killAllConnection = nil
+        end
+        print("[Z3US] Kill All disabled")
+    end
+end
 
 --// GUI
 function Combat:Init(Gui)
@@ -451,64 +270,59 @@ function Combat:Init(Gui)
         g.Content = scroll
 
         local y = g:CreateSection("Aimbot", 0)
-        y = g:CreateToggle("Aimbot", Combat.Config.AimbotEnabled, function(state)
+        y = g:CreateToggle("Aimbot Enabled", Combat.Config.AimbotEnabled, function(state)
             Combat.Config.AimbotEnabled = state
         end, y)
-        y = g:CreateToggle("Team Check", Combat.Config.TeamCheck, function(state)
-            Combat.Config.TeamCheck = state
+        y = g:CreateToggle("Team Check", Combat.Config.AimbotTeamCheck, function(state)
+            Combat.Config.AimbotTeamCheck = state
         end, y)
-        y = g:CreateToggle("Wall Check", Combat.Config.WallCheck, function(state)
-            Combat.Config.WallCheck = state
+        y = g:CreateToggle("Wall Check", Combat.Config.AimbotWallCheck, function(state)
+            Combat.Config.AimbotWallCheck = state
         end, y)
-        y = g:CreateSlider("FOV Radius", 10, 200, Combat.Config.FOV, function(val)
-            Combat.Config.FOV = val
+        y = g:CreateSlider("FOV", 10, 500, Combat.Config.AimbotFOV, function(val)
+            Combat.Config.AimbotFOV = val
         end, y)
-
-        y = g:CreateSection("Silent Aim", y + 10)
-        y = g:CreateToggle("Silent Aim", Combat.Config.SilentAimEnabled, function(state)
-            Combat.Config.SilentAimEnabled = state
-            if state then
-                StartSilentAim()
-            else
-                StopSilentAim()
-            end
+        y = g:CreateSlider("Smoothness", 1, 10, Combat.Config.AimbotSmoothness, function(val)
+            Combat.Config.AimbotSmoothness = val
         end, y)
-        y = g:CreateSlider("Silent Aim FOV", 50, 500, Combat.Config.SilentAimFOV, function(val)
-            Combat.Config.SilentAimFOV = val
+        y = g:CreateDropdown("Hitpart", {"Head", "HumanoidRootPart", "Torso"}, Combat.Config.AimbotHitpart, function(val)
+            Combat.Config.AimbotHitpart = val
         end, y)
 
         y = g:CreateSection("Hitbox Expander", y + 10)
-        y = g:CreateToggle("Hitbox Expander", Combat.Config.HitboxEnabled, function(state)
-            Combat.Config.HitboxEnabled = state
-            if not state then RestoreHitboxes() end
+        y = g:CreateToggle("Enabled", Combat.Config.HitboxExpander, function(state)
+            Combat:SetHitboxExpander(state)
         end, y)
-        y = g:CreateSlider("Body Hitbox Size", 5, 25, Combat.Config.HitboxSize, function(val)
+        y = g:CreateSlider("Size", 1, 20, Combat.Config.HitboxSize, function(val)
             Combat.Config.HitboxSize = val
         end, y)
-        y = g:CreateSlider("HeadHB Size", 10, 30, Combat.Config.HeadHBSize, function(val)
-            Combat.Config.HeadHBSize = val
+
+        -- Z3US Kill All
+        y = g:CreateSection("Z3US Kill All", y + 10)
+        y = g:CreateToggle("Kill All", false, function(state)
+            SetKillAll(state)
         end, y)
 
-        y = g:CreateSection("Kill All", y + 10)
-        y = g:CreateToggle("Kill All", Combat.Config.KillAllEnabled, function(state)
-            Combat.Config.KillAllEnabled = state
-            if state then
-                StartKillAll()
-            else
-                Combat:StopKillAll()
-            end
+        -- Z3US Hitsounds
+        y = g:CreateSection("Z3US Hitsounds", y + 10)
+
+        y = g:CreateToggle("Enabled", false, function(state)
+            Combat.Config.HitsoundsEnabled = state
         end, y)
-        y = g:CreateSlider("Kill All Range", 50, 1000, Combat.Config.KillAllRange, function(val)
-            Combat.Config.KillAllRange = val
+
+        local hitsoundNames = {"None", "Skeet.cc", "Neverlose", "Baimware", "Old Fatality", "Rust", "Bell", "TF2", "Among Us", "Fortnite Headshot", "Minecraft", "Osu", "TF2 Critical", "Bat", "Call of Duty", "Bruh", "Crowbar", "Weeb", "Steve"}
+        y = g:CreateDropdown("Sound", hitsoundNames, "Skeet.cc", function(val)
+            Combat.Config.Hitsound = val
         end, y)
-        y = g:CreateSlider("Kill All Delay", 1, 50, math.floor(Combat.Config.KillAllDelay * 10), function(val)
-            Combat.Config.KillAllDelay = val / 10
+
+        y = g:CreateSlider("Volume", 0, 10, 1, function(val)
+            Combat.Config.HitsoundVolume = val
         end, y)
 
         g.Content = originalContent
     end)
 
-    print("[ENI] Combat module loaded")
+    print("[ENI] Combat module loaded with Z3US Hitsounds + Kill All")
     return self
 end
 

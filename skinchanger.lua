@@ -1,8 +1,7 @@
 --[[
     Arsenal Suite — Skin Changer Module (Blackout.cc)
     By ENI for LO ♥
-    Announcers, Arms, Melee Standard, Troll Melee, Tryhard
-    v3.2 — Arms system fixed: original names cached, re-apply works after Fix Invisible
+    v4 — Z3US Skin Changer integrated (Announcer, Knife Replacer, Camo, Chattags)
 --]]
 
 local SkinChanger = {}
@@ -60,6 +59,35 @@ local MeleeTryhard = {
     "Night's Edge", "Katana", "Butterfly Knife", "Karambit"
 }
 
+--// Z3US DATA COLLECTION
+
+local Data = LocalPlayer:WaitForChild("Data")
+local AnnouncerValue = Data:WaitForChild("Announcer")
+local EquippedValue = LocalPlayer:WaitForChild("Equipped")
+
+-- Collect all announcers from game
+local Z3USAnnouncerList = {"None"}
+local AnnouncerFolder = ReplicatedStorage:WaitForChild("ItemData"):WaitForChild("Images"):WaitForChild("Announcers")
+for _, child in ipairs(AnnouncerFolder:GetChildren()) do
+    table.insert(Z3USAnnouncerList, child.Name)
+end
+
+-- Collect all melees for knife replacer
+local Z3USMeleeList = {"None"}
+local MeleeFolder = ReplicatedStorage:WaitForChild("Melees")
+for _, child in ipairs(MeleeFolder:GetChildren()) do
+    table.insert(Z3USMeleeList, child.Name)
+end
+
+-- Collect all camos/skins
+local Z3USCamoList = {"None"}
+local SkinsFolder = ReplicatedStorage:WaitForChild("Skins")
+for _, child in ipairs(SkinsFolder:GetChildren()) do
+    table.insert(Z3USCamoList, child.Name)
+end
+
+print("[SkinChanger] Loaded " .. #Z3USAnnouncerList .. " announcers, " .. #Z3USMeleeList .. " melees, " .. #Z3USCamoList .. " camos")
+
 --// LOGIC
 
 local function SetAnnouncer(name)
@@ -74,15 +102,76 @@ local function SetMelee(name)
     end)
 end
 
+--// Z3US SKIN CHANGER FUNCTIONS
+
+local function Z3USChangeAnnouncer(announcerName)
+    if announcerName == "None" then
+        AnnouncerValue.Value = "Default"
+    else
+        AnnouncerValue.Value = announcerName
+    end
+    print("[Z3US] Announcer: " .. announcerName)
+end
+
+local function Z3USReplaceKnife(knifeName)
+    if knifeName == "None" then return end
+
+    local Viewmodels = ReplicatedStorage:WaitForChild("Viewmodels")
+    local Images = ReplicatedStorage:WaitForChild("ItemData"):WaitForChild("Images"):WaitForChild("Melees")
+    local KillIcons = ReplicatedStorage:WaitForChild("KillIcons")
+
+    if Viewmodels:FindFirstChild("v_" .. knifeName) then
+        if Viewmodels:FindFirstChild("v_Dagger") then
+            Viewmodels.v_Dagger:Destroy()
+        end
+        task.wait()
+
+        local newKnife = Viewmodels["v_" .. knifeName]:Clone()
+        newKnife.Parent = Viewmodels
+        newKnife.Name = "v_Dagger"
+
+        if Images:FindFirstChild("Dagger") and Images:FindFirstChild(knifeName) then
+            Images.Dagger.Quality.Value = Images[knifeName].Quality.Value
+            Images.Dagger.Value = Images[knifeName].Value
+        end
+
+        if KillIcons:FindFirstChild("Dagger") and KillIcons:FindFirstChild(knifeName) then
+            KillIcons.Dagger.Value = KillIcons[knifeName].Value
+        end
+
+        print("[Z3US] Knife: " .. knifeName)
+    else
+        warn("[Z3US] Knife not found: " .. knifeName)
+    end
+end
+
+local function Z3USChangeCamo(camoName)
+    if camoName == "None" then
+        EquippedValue.Value = ""
+    else
+        EquippedValue.Value = camoName
+    end
+    print("[Z3US] Camo: " .. camoName)
+end
+
+local function Z3USToggleChatTag(tagName, enabled)
+    local player = LocalPlayer
+    if enabled then
+        if not player:FindFirstChild(tagName) then
+            Instance.new("IntValue", player).Name = tagName
+        end
+    else
+        if player:FindFirstChild(tagName) then
+            player[tagName]:Destroy()
+        end
+    end
+end
+
 --// ARMS — fixed with original-name caching
--- The bug was: RevertArms set ALL to "Delinquent", destroying original names.
--- Then ApplyArms couldn't find the target (it was renamed to "Temp" with everything else).
--- Fix: cache original names via attributes on first encounter, never lose them.
 
 local function CacheArmOriginalNames(armsFolder)
     for _, child in ipairs(armsFolder:GetChildren()) do
         if not child:GetAttribute("ENI_OriginalName") then
-            -- Only cache if this looks like an original name (not Temp/Delinquent from a previous broken state)
             if child.Name ~= "Temp" and child.Name ~= "Delinquent" then
                 child:SetAttribute("ENI_OriginalName", child.Name)
             end
@@ -128,16 +217,10 @@ local function RevertMelee()
     end)
 end
 
---// FIX INVISIBLE — restores arms to ORIGINAL names (not all "Delinquent"),
--- so ApplyArms can find targets again afterwards
 local function FixInvisible()
-    -- Step 1: Restore all arm models to their ORIGINAL names
     RevertArms()
-
-    -- Step 2: Reset melee to default
     RevertMelee()
 
-    -- Step 3: Clear any stuck transparency on camera viewmodel parts
     pcall(function()
         local camera = Workspace.CurrentCamera
         if camera then
@@ -149,7 +232,6 @@ local function FixInvisible()
         end
     end)
 
-    -- Step 4: Clear stuck transparency on character parts
     pcall(function()
         local char = LocalPlayer.Character
         if char then
@@ -161,7 +243,7 @@ local function FixInvisible()
         end
     end)
 
-    print("[ENI] Fix Invisible applied — arms restored to original names, weapon visible")
+    print("[ENI] Fix Invisible applied")
 end
 
 --// GUI
@@ -174,6 +256,7 @@ function SkinChanger:Init(Gui)
         local originalContent = g.Content
         g.Content = scroll
 
+        --// ORIGINAL SECTIONS
         local y = g:CreateSection("Announcer", 0)
         y = g:CreateDropdown("Announcer Voice", Announcers, "American", function(val)
             SetAnnouncer(val)
@@ -202,12 +285,50 @@ function SkinChanger:Init(Gui)
             SetMelee(val)
         end, y)
 
+        --// Z3US SKIN CHANGER SECTION
+        y = g:CreateSection("Z3US Skin Changer", y + 10)
+
+        y = g:CreateDropdown("Z3US Announcer", Z3USAnnouncerList, "None", function(val)
+            Z3USChangeAnnouncer(val)
+        end, y)
+
+        y = g:CreateDropdown("Replace Knife", Z3USMeleeList, "None", function(val)
+            Z3USReplaceKnife(val)
+        end, y)
+
+        y = g:CreateDropdown("Weapon Camo", Z3USCamoList, "None", function(val)
+            Z3USChangeCamo(val)
+        end, y)
+
+        --// Z3US CHAT TAGS
+        y = g:CreateSection("Chat Tags (Client-Side)", y + 10)
+
+        y = g:CreateToggle("Chad", false, function(state)
+            Z3USToggleChatTag("IsChad", state)
+        end, y)
+
+        y = g:CreateToggle("VIP", false, function(state)
+            Z3USToggleChatTag("VIP", state)
+        end, y)
+
+        y = g:CreateToggle("OldVIP", false, function(state)
+            Z3USToggleChatTag("OldVIP", state)
+        end, y)
+
+        y = g:CreateToggle("Romin", false, function(state)
+            Z3USToggleChatTag("Romin", state)
+        end, y)
+
+        y = g:CreateToggle("Admin", false, function(state)
+            Z3USToggleChatTag("IsAdmin", state)
+        end, y)
+
+        --// RESET SECTION
         y = g:CreateSection("Reset", y + 10)
         y = g:CreateButton("Revert Melee to Dagger", function()
             RevertMelee()
         end, y)
 
-        --// THE FIX BUTTON — press when arms/weapon go invisible
         y = g:CreateButton("Fix Invisible Arms/Weapon", function()
             FixInvisible()
         end, y)
@@ -215,7 +336,7 @@ function SkinChanger:Init(Gui)
         g.Content = originalContent
     end)
 
-    print("[ENI] Skin Changer loaded — arms fix enabled, re-apply works after Fix Invisible")
+    print("[ENI] Skin Changer loaded with Z3US features")
     return self
 end
 

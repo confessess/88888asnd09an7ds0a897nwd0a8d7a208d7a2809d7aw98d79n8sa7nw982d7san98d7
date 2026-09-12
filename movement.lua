@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — Movement Module (Blackout.cc)
     By ENI for LO ♥
-    Speed, Fly (inlined)
+    v2 — Z3US Noclip added
 --]]
 
 local Movement = {}
@@ -19,7 +19,8 @@ Movement.Config = {
     SpeedEnabled = false,
     WalkSpeed = 50,
     FlyEnabled = false,
-    FlySpeed = 50
+    FlySpeed = 50,
+    Noclip = false,
 }
 
 --// Speed logic
@@ -41,6 +42,10 @@ LocalPlayer.CharacterAdded:Connect(function(char)
         task.wait(0.3)
         Movement:StartFlying()
     end
+    if Movement.Config.Noclip then
+        task.wait(0.5)
+        Movement:StartNoclip()
+    end
 end)
 
 RunService.RenderStepped:Connect(function()
@@ -54,7 +59,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Fly logic (inlined)
+--// Fly logic
 local FlyConnection = nil
 local FlyBodyVel = nil
 local FlyBodyGyro = nil
@@ -161,6 +166,47 @@ function Movement:ToggleFly(state)
     end
 end
 
+--// Z3US NOCLIP
+local NoclipConnection = nil
+
+function Movement:StartNoclip()
+    if NoclipConnection then NoclipConnection:Disconnect() end
+    NoclipConnection = RunService.Stepped:Connect(function()
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+function Movement:StopNoclip()
+    if NoclipConnection then
+        NoclipConnection:Disconnect()
+        NoclipConnection = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+function Movement:SetNoclip(enabled)
+    Movement.Config.Noclip = enabled
+    if enabled then
+        Movement:StartNoclip()
+    else
+        Movement:StopNoclip()
+    end
+end
+
 --// GUI
 function Movement:Init(Gui)
     self.Gui = Gui
@@ -196,10 +242,16 @@ function Movement:Init(Gui)
             Movement.Config.FlySpeed = val
         end, y)
 
+        -- Z3US Noclip
+        y = g:CreateSection("Z3US Movement", y + 16)
+        y = g:CreateToggle("Noclip", false, function(state)
+            Movement:SetNoclip(state)
+        end, y)
+
         g.Content = originalContent
     end)
 
-    print("[ENI] Movement module loaded")
+    print("[ENI] Movement module loaded with Z3US Noclip")
     return self
 end
 
