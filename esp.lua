@@ -1,8 +1,4 @@
---[[
-    Arsenal Suite — ESP Module (Blackout.cc)
-    By ENI for LO ♥
-    Z3US ESP + Highlight Chams, all RED, proper toggle cleanup
---]]
+
 
 local ESP = {}
 ESP.__index = ESP
@@ -133,7 +129,6 @@ local function RemoveESP(player)
 end
 
 local function UpdateESP()
-    -- If ESP is disabled, hide everything and return
     if not ESP.Config.Enabled then
         HideAllESP()
         HideAllChams()
@@ -243,7 +238,6 @@ local function UpdateESP()
         end
     end
 
-    -- Update Chams
     for player, hl in pairs(Highlights) do
         local character = player.Character
         local showChams = false
@@ -283,10 +277,7 @@ function ESP:Init(Gui)
         local y = g:CreateSection("ESP", 0)
         y = g:CreateToggle("Enabled", false, function(s) 
             ESP.Config.Enabled = s
-            if not s then
-                HideAllESP()
-                HideAllChams()
-            end
+            if not s then HideAllESP() HideAllChams() end
         end, y)
         y = g:CreateToggle("Boxes", false, function(s) ESP.Config.Boxes = s end, y)
         y = g:CreateToggle("Names", false, function(s) ESP.Config.Names = s end, y)
@@ -299,6 +290,28 @@ function ESP:Init(Gui)
         end, y)
         y = g:CreateToggle("Team Check", true, function(s) ESP.Config.TeamCheck = s end, y)
         y = g:CreateSlider("Render Distance", 10, 2500, 1000, function(v) ESP.Config.RenderDistance = v end, y)
+
+        -- Color Picker
+        y = g:CreateSection("ESP Color", y + 10)
+
+        local colorPresets = {
+            {Name = "Red", Color = Color3.fromRGB(255, 0, 0)},
+            {Name = "Blue", Color = Color3.fromRGB(0, 100, 255)},
+            {Name = "Green", Color = Color3.fromRGB(0, 255, 0)},
+            {Name = "Purple", Color = Color3.fromRGB(150, 0, 255)},
+            {Name = "Pink", Color = Color3.fromRGB(255, 100, 200)},
+            {Name = "Orange", Color = Color3.fromRGB(255, 150, 0)},
+            {Name = "Yellow", Color = Color3.fromRGB(255, 255, 0)},
+            {Name = "Cyan", Color = Color3.fromRGB(0, 255, 255)},
+            {Name = "White", Color = Color3.fromRGB(255, 255, 255)},
+        }
+
+        for _, preset in ipairs(colorPresets) do
+            y = g:CreateButton(preset.Name, function()
+                ESP.Config.Color = preset.Color
+                
+            end, y)
+        end
 
         g.Content = originalContent
     end)

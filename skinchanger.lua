@@ -1,8 +1,3 @@
---[[
-    Arsenal Suite — Skin Changer Module (Blackout.cc)
-    By ENI for LO ♥
-    Z3US Skin Changer + Arms Changer
---]]
 
 local SkinChanger = {}
 SkinChanger.__index = SkinChanger

@@ -1,8 +1,4 @@
---[[
-    Arsenal Suite — Movement Module (Blackout.cc)
-    By ENI for LO ♥
-    v2 — Z3US Noclip added
---]]
+
 
 local Movement = {}
 Movement.__index = Movement
@@ -21,6 +17,7 @@ Movement.Config = {
     FlyEnabled = false,
     FlySpeed = 50,
     Noclip = false,
+    ThirdPerson = false,
 }
 
 --// Speed logic
@@ -45,6 +42,10 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if Movement.Config.Noclip then
         task.wait(0.5)
         Movement:StartNoclip()
+    end
+    if Movement.Config.ThirdPerson then
+        task.wait(0.5)
+        Movement:EnableThirdPerson()
     end
 end)
 
@@ -166,6 +167,51 @@ function Movement:ToggleFly(state)
     end
 end
 
+--// Z3US 3RD PERSON CAMERA
+local thirdPersonConnection = nil
+
+function Movement:EnableThirdPerson()
+    Movement.Config.ThirdPerson = true
+
+    local function ForceThirdPerson()
+        if LocalPlayer.CameraMode == Enum.CameraMode.LockFirstPerson then
+            LocalPlayer.CameraMode = Enum.CameraMode.Classic
+        end
+    end
+
+    -- Initial force
+    ForceThirdPerson()
+
+    -- Keep forcing every frame
+    if thirdPersonConnection then thirdPersonConnection:Disconnect() end
+    thirdPersonConnection = RunService.RenderStepped:Connect(ForceThirdPerson)
+
+    -- Also hook property changes
+    LocalPlayer:GetPropertyChangedSignal("CameraMode"):Connect(ForceThirdPerson)
+
+    
+end
+
+function Movement:DisableThirdPerson()
+    Movement.Config.ThirdPerson = false
+
+    if thirdPersonConnection then
+        thirdPersonConnection:Disconnect()
+        thirdPersonConnection = nil
+    end
+
+    LocalPlayer.CameraMode = Enum.CameraMode.Classic
+   
+end
+
+function Movement:SetThirdPerson(enabled)
+    if enabled then
+        Movement:EnableThirdPerson()
+    else
+        Movement:DisableThirdPerson()
+    end
+end
+
 --// Z3US NOCLIP
 local NoclipConnection = nil
 
@@ -242,7 +288,11 @@ function Movement:Init(Gui)
             Movement.Config.FlySpeed = val
         end, y)
 
-        -- Z3US Noclip
+        y = g:CreateSection("Z3US Camera", y + 16)
+        y = g:CreateToggle("3rd Person", false, function(state)
+            Movement:SetThirdPerson(state)
+        end, y)
+
         y = g:CreateSection("Z3US Movement", y + 16)
         y = g:CreateToggle("Noclip", false, function(state)
             Movement:SetNoclip(state)
@@ -251,7 +301,7 @@ function Movement:Init(Gui)
         g.Content = originalContent
     end)
 
-    print("[ENI] Movement module loaded with Z3US Noclip")
+    
     return self
 end
 

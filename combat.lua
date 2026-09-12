@@ -1,8 +1,4 @@
---[[
-    Arsenal Suite — Combat Module (Blackout.cc)
-    By ENI for LO ♥
-    Aimbot, Silent Aim, Hitbox Expander, Kill All
---]]
+
 
 local Combat = {}
 Combat.__index = Combat
@@ -11,12 +7,16 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local SoundService = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 Combat.Config = {
     AimbotEnabled = false,
+    AimbotToggleMode = false,
+    AimbotToggleKey = Enum.KeyCode.X,
+    AimbotActive = false,
     SilentAimEnabled = false,
     HitboxEnabled = false,
     TeamCheck = true,
@@ -28,6 +28,9 @@ Combat.Config = {
     AimKey = Enum.UserInputType.MouseButton2,
     SilentAimFOV = 150,
     KillAll = false,
+    HitsoundsEnabled = false,
+    Hitsound = "Skeet.cc",
+    HitsoundVolume = 1,
 }
 
 --// Drawing FOV Circle
@@ -115,7 +118,7 @@ local function StartSilentAim()
 
     local actor = getactors()[1]
     if not actor then
-        warn("[ENI] No actor found for silent aim — executor may not support getactors()")
+        warn("[ENI] No actor found for silent aim")
         SilentAimRunning = false
         return
     end
@@ -226,6 +229,11 @@ UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Combat.Config.AimKey then
         IsAiming = true
     end
+
+    -- Aimbot Toggle Key
+    if Combat.Config.AimbotToggleMode and input.KeyCode == Combat.Config.AimbotToggleKey then
+        Combat.Config.AimbotActive = not Combat.Config.AimbotActive
+    end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
@@ -252,7 +260,17 @@ RunService.RenderStepped:Connect(function()
         TeamCheck = Combat.Config.TeamCheck
     }
 
-    if Combat.Config.AimbotEnabled and IsAiming then
+    -- Aimbot (hold or toggle mode)
+    local shouldAim = false
+    if Combat.Config.AimbotEnabled then
+        if Combat.Config.AimbotToggleMode then
+            shouldAim = Combat.Config.AimbotActive
+        else
+            shouldAim = IsAiming
+        end
+    end
+
+    if shouldAim then
         local target = GetClosestEnemy()
         if target and target.Character and target.Character:FindFirstChild("Head") then
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
@@ -321,6 +339,54 @@ Players.PlayerRemoving:Connect(function(plr)
                 OriginalData[part] = nil
             end
         end
+    end
+end)
+
+--// HITSOUNDS
+local HitsoundList = {
+    ["None"] = "", ["Skeet.cc"] = "rbxassetid://5447626464", ["Neverlose"] = "rbxassetid://6607204501",
+    ["Baimware"] = "rbxassetid://6607339542", ["Old Fatality"] = "rbxassetid://6607142036",
+    ["Rust"] = "rbxassetid://5043539486", ["Bell"] = "rbxassetid://6534947240",
+    ["TF2"] = "rbxassetid://2868331684", ["Among Us"] = "rbxassetid://5700183626",
+    ["Fortnite Headshot"] = "rbxassetid://2513174484", ["Minecraft"] = "rbxassetid://4018616850",
+    ["Osu"] = "rbxassetid://7149255551", ["TF2 Critical"] = "rbxassetid://296102734",
+    ["Bat"] = "rbxassetid://3333907347", ["Call of Duty"] = "rbxassetid://5952120301",
+    ["Bruh"] = "rbxassetid://4275842574", ["Crowbar"] = "rbxassetid://546410481",
+    ["Weeb"] = "rbxassetid://6442965016", ["Steve"] = "rbxassetid://4965083997"
+}
+
+local function PlayHitsound()
+    if not Combat.Config.HitsoundsEnabled then return end
+    local soundId = HitsoundList[Combat.Config.Hitsound]
+    if not soundId or soundId == "" then return end
+    local sound = Instance.new("Sound")
+    sound.SoundId = soundId
+    sound.Volume = Combat.Config.HitsoundVolume
+    sound.Parent = SoundService
+    sound:Play()
+    sound.Ended:Connect(function() sound:Destroy() end)
+end
+
+local function SetupHitsounds()
+    local scoreFolder = LocalPlayer:WaitForChild("ScoreFolder")
+    local damageValue = scoreFolder:WaitForChild("Damage")
+    damageValue:GetPropertyChangedSignal("Value"):Connect(function(newValue)
+        if newValue == 0 then return end
+        PlayHitsound()
+    end)
+    LocalPlayer.ChildRemoved:Connect(function(child)
+        if child.Name == "ScoreFolder" then
+            task.wait(3)
+            pcall(SetupHitsounds)
+        end
+    end)
+end
+
+task.spawn(function()
+    local success = pcall(SetupHitsounds)
+    if not success then
+        task.wait(5)
+        pcall(SetupHitsounds)
     end
 end)
 
@@ -396,6 +462,12 @@ function Combat:Init(Gui)
         y = g:CreateToggle("Aimbot", Combat.Config.AimbotEnabled, function(state)
             Combat.Config.AimbotEnabled = state
         end, y)
+        y = g:CreateToggle("Toggle Mode", false, function(state)
+            Combat.Config.AimbotToggleMode = state
+        end, y)
+        y = g:CreateDropdown("Toggle Key", {"X", "C", "V", "B", "N", "M", "Q", "E", "F", "G"}, "X", function(val)
+            Combat.Config.AimbotToggleKey = Enum.KeyCode[val]
+        end, y)
         y = g:CreateToggle("Team Check", Combat.Config.TeamCheck, function(state)
             Combat.Config.TeamCheck = state
         end, y)
@@ -436,10 +508,22 @@ function Combat:Init(Gui)
             SetKillAll(state)
         end, y)
 
+        y = g:CreateSection("Hitsounds", y + 10)
+        y = g:CreateToggle("Enabled", false, function(state)
+            Combat.Config.HitsoundsEnabled = state
+        end, y)
+        local hitsoundNames = {"None", "Skeet.cc", "Neverlose", "Baimware", "Old Fatality", "Rust", "Bell", "TF2", "Among Us", "Fortnite Headshot", "Minecraft", "Osu", "TF2 Critical", "Bat", "Call of Duty", "Bruh", "Crowbar", "Weeb", "Steve"}
+        y = g:CreateDropdown("Sound", hitsoundNames, "Skeet.cc", function(val)
+            Combat.Config.Hitsound = val
+        end, y)
+        y = g:CreateSlider("Volume", 0, 10, 1, function(val)
+            Combat.Config.HitsoundVolume = val
+        end, y)
+
         g.Content = originalContent
     end)
 
-    print("[ENI] Combat module loaded — Silent Aim + Kill All ready")
+   
     return self
 end
 

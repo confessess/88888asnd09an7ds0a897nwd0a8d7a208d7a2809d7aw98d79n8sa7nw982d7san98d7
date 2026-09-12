@@ -1,18 +1,4 @@
---[[
-    Arsenal Suite — Viewmodel Customizer (Blackout.cc)
-    By ENI for LO ♥
 
-    Standalone viewmodel cloner: clones whatever viewmodel is currently
-    in the camera, lets you customize the clone independently.
-    Works with EVERY gun — no data tables needed.
-
-    Usage: Load from main.lua OR use standalone. Not loaded by default
-    since gunmods.lua now includes viewmodel chams.
-
-    To enable: Add this line to main.lua after SkinChangerModule:
-        local VMCustomizer = loadstring(game:HttpGet(BASE .. "weaponchanger.lua"))()
-        VMCustomizer:Init(Gui)
---]]
 
 local ViewmodelCustomizer = {}
 ViewmodelCustomizer.__index = ViewmodelCustomizer

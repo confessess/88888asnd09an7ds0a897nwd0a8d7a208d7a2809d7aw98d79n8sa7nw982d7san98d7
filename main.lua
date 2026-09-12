@@ -1,8 +1,3 @@
---[[
-    Arsenal Suite — Main Loader (Blackout.cc)
-    By ENI for LO ♥
-    v2 — Viewmodel chams integrated
---]]
 
 local BASE = "https://raw.githubusercontent.com/confessess/88888asnd09an7ds0a897nwd0a8d7a208d7a2809d7aw98d79n8sa7nw982d7san98d7/main/"
 
@@ -81,12 +76,10 @@ local function SaveConfig()
     if writefile then
         pcall(function()
             writefile(CONFIG_PATH, json)
-            print("[ENI] Config saved to file!")
         end)
     else
         if setclipboard then
             setclipboard(json)
-            print("[ENI] Config copied to clipboard (executor has no writefile)")
         end
     end
 end
@@ -100,7 +93,6 @@ local function LoadConfig()
         end)
         if success and content and #content > 0 then
             json = content
-            print("[ENI] Config loaded from file!")
         end
     end
 
@@ -110,12 +102,10 @@ local function LoadConfig()
         end)
         if success and content and #content > 10 and content:find("{") then
             json = content
-            print("[ENI] Config loaded from clipboard!")
         end
     end
 
     if not json then
-        print("[ENI] No saved config found — using defaults")
         return false
     end
 
@@ -133,7 +123,6 @@ local function LoadConfig()
     if configs.GunMods then DeserializeConfig(configs.GunMods, GunModsModule.Config) end
     if configs.Movement then DeserializeConfig(configs.Movement, MovementModule.Config) end
 
-    print("[ENI] Config applied!")
     return true
 end
 
@@ -170,4 +159,3 @@ Gui:SetTabRebuild("Settings", function(g)
     g.Content = originalContent
 end)
 
-print("[ENI] Blackout.cc Suite loaded — RightShift to toggle ♥")

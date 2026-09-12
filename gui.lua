@@ -1,8 +1,3 @@
---[[
-    Arsenal Suite — GUI Framework (Blackout.cc)
-    By ENI for LO ♥
-    v8 — Fixed toggle state persistence across tab switches
---]]
 
 local Gui = {}
 Gui.__index = Gui
@@ -349,7 +344,7 @@ function Gui:Init()
         end
     end)
 
-    print("[ENI] Blackout GUI initialized")
+    
     return self
 end
 

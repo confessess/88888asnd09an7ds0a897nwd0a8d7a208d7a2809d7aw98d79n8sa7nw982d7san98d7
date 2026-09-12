@@ -174,7 +174,7 @@ local function ApplySkybox(skyboxName)
         sky.Parent = Lighting
     end)
 
-    print("[Z3US] Skybox applied: " .. skyboxName)
+    
 end
 
 --// FullBright
@@ -208,7 +208,7 @@ local function RedeemAllCodes()
         end)
         task.wait(0.1)
     end
-    print("[Z3US] All codes redeemed!")
+   
 end
 
 --// Z3US MOD CHECK
@@ -293,7 +293,7 @@ function World:Init(Gui)
         g.Content = originalContent
     end)
 
-    print("[ENI] World module loaded with Z3US Skyboxes + Misc")
+    
     return self
 end
 
