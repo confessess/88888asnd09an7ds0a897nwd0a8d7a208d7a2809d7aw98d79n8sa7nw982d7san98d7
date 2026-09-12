@@ -1,7 +1,7 @@
 --[[
-    Arsenal Suite — Skin Changer Module (Blackout.cc)
+    Arsenal Suite — Skin Changer + Viewmodel Module (Blackout.cc)
     By ENI for LO ♥
-    Melee, Skins, Announcers with search + previews
+    Melee, Skins, Announcers, Gun Customization, Custom Viewmodels
 --]]
 
 local SkinChanger = {}
@@ -9,10 +9,35 @@ SkinChanger.__index = SkinChanger
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
---// DATA
+--// CONFIG
+SkinChanger.Config = {
+    -- Legacy skin changer (Data values)
+    Melee = "Dagger",
+    Skin = "Delinquent",
+    Announcer = "American",
+
+    -- Custom Viewmodel
+    CustomViewmodelEnabled = false,
+    ViewmodelMelee = "Dagger",
+    ViewmodelArms = "Delinquent",
+    RealViewmodelTransparency = 0.5,
+
+    -- Gun Customization
+    GunChamsEnabled = false,
+    GunMaterial = "Neon",
+    GunColor = Color3.fromRGB(255, 0, 0),
+    GunRainbow = false,
+    GunRainbowSpeed = 2,
+    GunTransparency = 0,
+}
+
+--// DATA — Melee with asset IDs
 local MeleeData = {
     ["Dagger"] = "rbxassetid://3084445116",
     ["Butterfly Knife"] = "rbxassetid://3084444147",
@@ -146,7 +171,22 @@ local AnnouncerData = {
     ["Weesnaw"] = "rbxassetid://5729107489",
 }
 
---// LOGIC
+local GunMaterials = {"Neon", "ForceField", "Glass", "SmoothPlastic", "Metal", "Wood", "Granite", "Marble", "Brick", "DiamondPlate", "Foil", "Ice"}
+
+local GunColors = {
+    {Name = "Red", Color = Color3.fromRGB(255, 0, 0)},
+    {Name = "Blue", Color = Color3.fromRGB(0, 100, 255)},
+    {Name = "Green", Color = Color3.fromRGB(0, 255, 0)},
+    {Name = "Purple", Color = Color3.fromRGB(150, 0, 255)},
+    {Name = "Pink", Color = Color3.fromRGB(255, 100, 200)},
+    {Name = "Orange", Color = Color3.fromRGB(255, 150, 0)},
+    {Name = "Yellow", Color = Color3.fromRGB(255, 255, 0)},
+    {Name = "Cyan", Color = Color3.fromRGB(0, 255, 255)},
+    {Name = "White", Color = Color3.fromRGB(255, 255, 255)},
+    {Name = "Black", Color = Color3.fromRGB(20, 20, 20)},
+}
+
+--// LEGACY SKIN CHANGER (Data values)
 local function SetMelee(name)
     pcall(function()
         LocalPlayer.Data.Melee.Value = name
@@ -165,9 +205,172 @@ local function SetAnnouncer(name)
     end)
 end
 
+--// CUSTOM VIEWMODEL SYSTEM
+local CustomViewmodel = nil
+local RenderConnection = nil
+local GunChamsConnection = nil
+local GunHue = 0
+
+local function GetEquippedTool()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    return char:FindFirstChildOfClass("Tool")
+end
+
+local function CreateViewmodelPart(meshId, size, name)
+    local part = Instance.new("Part")
+    part.Size = size or Vector3.new(1, 1, 1)
+    part.CanCollide = false
+    part.CanQuery = false
+    part.CanTouch = false
+    part.Anchored = true
+    part.Transparency = 0
+    part.Name = name or "Part"
+
+    if meshId and meshId ~= "" then
+        local mesh = Instance.new("SpecialMesh")
+        mesh.MeshId = meshId
+        mesh.Parent = part
+    end
+
+    return part
+end
+
+local function BuildCustomViewmodel()
+    if CustomViewmodel then
+        CustomViewmodel:Destroy()
+        CustomViewmodel = nil
+    end
+
+    if not SkinChanger.Config.CustomViewmodelEnabled then return end
+
+    CustomViewmodel = Instance.new("Model")
+    CustomViewmodel.Name = "BlackoutViewmodel"
+
+    -- Melee part
+    local meleeId = MeleeData[SkinChanger.Config.ViewmodelMelee]
+    if meleeId then
+        local melee = CreateViewmodelPart(meleeId, Vector3.new(0.5, 0.5, 2), "Melee")
+        melee.Parent = CustomViewmodel
+    end
+
+    -- Arms part
+    local armsId = SkinsData[SkinChanger.Config.ViewmodelArms]
+    if armsId then
+        local arms = CreateViewmodelPart(armsId, Vector3.new(1, 1, 1), "Arms")
+        arms.Parent = CustomViewmodel
+    end
+
+    CustomViewmodel.Parent = Camera
+    print("[ENI] Custom viewmodel built: " .. SkinChanger.Config.ViewmodelMelee)
+end
+
+local function HideRealViewmodel()
+    local vm = Camera:FindFirstChild("Viewmodel")
+    if vm then
+        for _, part in ipairs(vm:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = SkinChanger.Config.RealViewmodelTransparency
+            end
+        end
+    end
+end
+
+local function ShowRealViewmodel()
+    local vm = Camera:FindFirstChild("Viewmodel")
+    if vm then
+        for _, part in ipairs(vm:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 0
+            end
+        end
+    end
+end
+
+local function StartViewmodelRender()
+    if RenderConnection then return end
+
+    RenderConnection = RunService.RenderStepped:Connect(function()
+        if not SkinChanger.Config.CustomViewmodelEnabled then
+            SkinChanger:StopViewmodel()
+            return
+        end
+
+        if CustomViewmodel then
+            local cf = Camera.CFrame
+            local melee = CustomViewmodel:FindFirstChild("Melee")
+            if melee then
+                melee.CFrame = cf * CFrame.new(0.5, -0.5, -2) * CFrame.Angles(0, math.rad(90), 0)
+            end
+            local arms = CustomViewmodel:FindFirstChild("Arms")
+            if arms then
+                arms.CFrame = cf * CFrame.new(0, -1.5, -1)
+            end
+        end
+
+        HideRealViewmodel()
+    end)
+end
+
+function SkinChanger:StopViewmodel()
+    if RenderConnection then
+        RenderConnection:Disconnect()
+        RenderConnection = nil
+    end
+    if CustomViewmodel then
+        CustomViewmodel:Destroy()
+        CustomViewmodel = nil
+    end
+    ShowRealViewmodel()
+end
+
+--// GUN CHAMS
+local function ApplyGunChams(color)
+    local tool = GetEquippedTool()
+    if not tool then return end
+
+    local material = Enum.Material[SkinChanger.Config.GunMaterial] or Enum.Material.Neon
+
+    for _, part in ipairs(tool:GetDescendants()) do
+        if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") or part:IsA("Part") then
+            part.Material = material
+            part.Color = color
+            part.Transparency = SkinChanger.Config.GunTransparency
+        end
+    end
+end
+
+local function StartGunChams()
+    if GunChamsConnection then return end
+    print("[ENI] Gun Chams started")
+
+    GunChamsConnection = RunService.Heartbeat:Connect(function(dt)
+        if not SkinChanger.Config.GunChamsEnabled then
+            SkinChanger:StopGunChams()
+            return
+        end
+
+        local color = SkinChanger.Config.GunColor
+        if SkinChanger.Config.GunRainbow then
+            GunHue = (GunHue + dt * SkinChanger.Config.GunRainbowSpeed) % 1
+            color = Color3.fromHSV(GunHue, 0.9, 1)
+        end
+
+        ApplyGunChams(color)
+    end)
+end
+
+function SkinChanger:StopGunChams()
+    if GunChamsConnection then
+        GunChamsConnection:Disconnect()
+        GunChamsConnection = nil
+        print("[ENI] Gun Chams stopped")
+    end
+    GunHue = 0
+end
+
 --// GUI HELPERS
 local function CreateSearchableDropdown(g, y, label, data, default, callback)
-    -- Search box
     local SearchFrame = Instance.new("Frame")
     SearchFrame.Size = UDim2.new(1, 0, 0, 30)
     SearchFrame.Position = UDim2.fromOffset(0, y)
@@ -193,7 +396,6 @@ local function CreateSearchableDropdown(g, y, label, data, default, callback)
     SearchBox.ZIndex = 5
     SearchBox.Parent = SearchFrame
 
-    -- Dropdown button
     local DropBtn = Instance.new("TextButton")
     DropBtn.Size = UDim2.new(1, 0, 0, 32)
     DropBtn.Position = UDim2.fromOffset(0, y + 34)
@@ -216,7 +418,6 @@ local function CreateSearchableDropdown(g, y, label, data, default, callback)
     DropStroke.Thickness = 1
     DropStroke.Parent = DropBtn
 
-    -- Preview image - FIXED: better sizing and loading
     local PreviewFrame = Instance.new("Frame")
     PreviewFrame.Size = UDim2.fromOffset(80, 80)
     PreviewFrame.Position = UDim2.new(1, -90, 0, y + 70)
@@ -238,12 +439,6 @@ local function CreateSearchableDropdown(g, y, label, data, default, callback)
     Preview.ZIndex = 5
     Preview.Parent = PreviewFrame
 
-    -- Loading fallback
-    if data[default] then
-        Preview.Image = data[default]
-    end
-
-    -- Popup list
     local Popup = Instance.new("Frame")
     Popup.Size = UDim2.fromOffset(220, 220)
     Popup.Position = UDim2.fromOffset(0, y + 70)
@@ -282,7 +477,12 @@ local function CreateSearchableDropdown(g, y, label, data, default, callback)
     for name, img in pairs(data) do
         table.insert(allOptions, {Name = name, Image = img})
     end
-    table.sort(allOptions, function(a, b) return a.Name < b.Name end)
+    -- Sort without modifying original table
+    local sortedOptions = {}
+    for _, opt in ipairs(allOptions) do
+        table.insert(sortedOptions, opt)
+    end
+    table.sort(sortedOptions, function(a, b) return a.Name < b.Name end)
 
     local function RebuildList(filter)
         for _, child in ipairs(PopupScroll:GetChildren()) do
@@ -290,7 +490,7 @@ local function CreateSearchableDropdown(g, y, label, data, default, callback)
         end
 
         local count = 0
-        for i, opt in ipairs(allOptions) do
+        for i, opt in ipairs(sortedOptions) do
             if not filter or opt.Name:lower():find(filter:lower()) then
                 count = count + 1
                 local Btn = Instance.new("TextButton")
@@ -365,25 +565,90 @@ function SkinChanger:Init(Gui)
         local originalContent = g.Content
         g.Content = scroll
 
-        local y = g:CreateSection("Melee", 0)
-        y = CreateSearchableDropdown(g, y, "Melee", MeleeData, "Dagger", function(val)
+        --// CUSTOM VIEWMODEL SECTION
+        local y = g:CreateSection("Custom Viewmodel", 0)
+
+        y = g:CreateToggle("Enable Custom Viewmodel", SkinChanger.Config.CustomViewmodelEnabled, function(state)
+            SkinChanger.Config.CustomViewmodelEnabled = state
+            if state then
+                BuildCustomViewmodel()
+                StartViewmodelRender()
+            else
+                SkinChanger:StopViewmodel()
+            end
+        end, y)
+
+        y = g:CreateSlider("Real Viewmodel Transparency", 0, 100, math.floor(SkinChanger.Config.RealViewmodelTransparency * 100), function(val)
+            SkinChanger.Config.RealViewmodelTransparency = val / 100
+        end, y)
+
+        y = g:CreateSection("Viewmodel Melee", y + 10)
+        y = CreateSearchableDropdown(g, y, "Melee", MeleeData, SkinChanger.Config.ViewmodelMelee, function(val)
+            SkinChanger.Config.ViewmodelMelee = val
+            if SkinChanger.Config.CustomViewmodelEnabled then
+                BuildCustomViewmodel()
+            end
+        end)
+
+        y = g:CreateSection("Viewmodel Arms", y + 10)
+        y = CreateSearchableDropdown(g, y, "Arms", SkinsData, SkinChanger.Config.ViewmodelArms, function(val)
+            SkinChanger.Config.ViewmodelArms = val
+            if SkinChanger.Config.CustomViewmodelEnabled then
+                BuildCustomViewmodel()
+            end
+        end)
+
+        --// GUN CUSTOMIZATION SECTION
+        y = g:CreateSection("Gun Customization", y + 10)
+
+        y = g:CreateToggle("Gun Chams", SkinChanger.Config.GunChamsEnabled, function(state)
+            SkinChanger.Config.GunChamsEnabled = state
+            if state then StartGunChams() else SkinChanger:StopGunChams() end
+        end, y)
+
+        y = g:CreateToggle("Gun Rainbow", SkinChanger.Config.GunRainbow, function(state)
+            SkinChanger.Config.GunRainbow = state
+        end, y)
+
+        y = g:CreateSlider("Gun Rainbow Speed", 1, 10, SkinChanger.Config.GunRainbowSpeed, function(val)
+            SkinChanger.Config.GunRainbowSpeed = val
+        end, y)
+
+        y = g:CreateSlider("Gun Transparency", 0, 100, math.floor(SkinChanger.Config.GunTransparency * 100), function(val)
+            SkinChanger.Config.GunTransparency = val / 100
+        end, y)
+
+        y = g:CreateDropdown("Gun Material", GunMaterials, SkinChanger.Config.GunMaterial, function(val)
+            SkinChanger.Config.GunMaterial = val
+        end, y)
+
+        y = g:CreateSection("Gun Color Presets", y + 10)
+        for _, preset in ipairs(GunColors) do
+            y = g:CreateButton(preset.Name, function()
+                SkinChanger.Config.GunColor = preset.Color
+                print("[ENI] Gun color set to: " .. preset.Name)
+            end, y)
+        end
+
+        --// LEGACY SKIN CHANGER (Data values)
+        y = g:CreateSection("Legacy Skin Changer", y + 10)
+        y = g:CreateDropdown("Melee (Data)", MeleeData, SkinChanger.Config.Melee, function(val)
+            SkinChanger.Config.Melee = val
             SetMelee(val)
-        end)
-
-        y = g:CreateSection("Character Skin", y + 10)
-        y = CreateSearchableDropdown(g, y, "Skin", SkinsData, "Delinquent", function(val)
+        end, y)
+        y = g:CreateDropdown("Skin (Data)", SkinsData, SkinChanger.Config.Skin, function(val)
+            SkinChanger.Config.Skin = val
             SetSkin(val)
-        end)
-
-        y = g:CreateSection("Announcer", y + 10)
-        y = CreateSearchableDropdown(g, y, "Announcer", AnnouncerData, "American", function(val)
+        end, y)
+        y = g:CreateDropdown("Announcer (Data)", AnnouncerData, SkinChanger.Config.Announcer, function(val)
+            SkinChanger.Config.Announcer = val
             SetAnnouncer(val)
-        end)
+        end, y)
 
         g.Content = originalContent
     end)
 
-    print("[ENI] Skin Changer loaded")
+    print("[ENI] Skin Changer + Viewmodel + Gun Chams loaded")
     return self
 end
 

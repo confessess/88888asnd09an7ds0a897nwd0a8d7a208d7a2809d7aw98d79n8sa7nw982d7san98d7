@@ -1,6 +1,7 @@
 --[[
     Arsenal Suite — Main Loader (Blackout.cc)
     By ENI for LO ♥
+    v2 — Viewmodel chams integrated
 --]]
 
 local BASE = "https://raw.githubusercontent.com/confessess/88888asnd09an7ds0a897nwd0a8d7a208d7a2809d7aw98d79n8sa7nw982d7san98d7/main/"
@@ -17,7 +18,7 @@ local Gui = GuiModule:Init()
 
 Gui:CreateTab("Combat", "Aimbot, silent aim, hitbox, kill all.")
 Gui:CreateTab("Visuals", "ESP and world rendering.")
-Gui:CreateTab("Weapon", "No recoil, no spread, rapid fire, infinite ammo, fast reload, rainbow guns.")
+Gui:CreateTab("Weapon", "No recoil, no spread, rapid fire, infinite ammo, fast reload, viewmodel chams.")
 Gui:CreateTab("Movement", "Speed, jump, and fly settings.")
 Gui:CreateTab("Skin Changer", "Announcers, arms, and melee skins.")
 Gui:CreateTab("World", "World modifications.")
@@ -77,14 +78,12 @@ local function SaveConfig()
 
     local json = game:GetService("HttpService"):JSONEncode(allConfigs)
 
-    -- Try to write to file if executor supports it
     if writefile then
         pcall(function()
             writefile(CONFIG_PATH, json)
             print("[ENI] Config saved to file!")
         end)
     else
-        -- Fallback: copy to clipboard
         if setclipboard then
             setclipboard(json)
             print("[ENI] Config copied to clipboard (executor has no writefile)")
@@ -95,7 +94,6 @@ end
 local function LoadConfig()
     local json = nil
 
-    -- Try to read from file
     if readfile then
         local success, content = pcall(function()
             return readfile(CONFIG_PATH)
@@ -106,7 +104,6 @@ local function LoadConfig()
         end
     end
 
-    -- If no file, try clipboard
     if not json and getclipboard then
         local success, content = pcall(function()
             return getclipboard()
@@ -131,7 +128,6 @@ local function LoadConfig()
         return false
     end
 
-    -- Apply configs
     if configs.Combat then DeserializeConfig(configs.Combat, CombatModule.Config) end
     if configs.ESP then DeserializeConfig(configs.ESP, ESPModule.Config) end
     if configs.GunMods then DeserializeConfig(configs.GunMods, GunModsModule.Config) end
@@ -143,7 +139,7 @@ end
 
 --// AUTO-LOAD config on startup
 task.spawn(function()
-    task.wait(1) -- Wait for modules to init
+    task.wait(1)
     LoadConfig()
 end)
 
@@ -156,6 +152,10 @@ Gui:SetTabRebuild("Settings", function(g)
     local y = g:CreateSection("GUI", 0)
     y = g:CreateKeybindSetting(y)
     y = g:CreateButton("Unload GUI", function()
+        -- Clean shutdown: restore everything before destroying
+        if GunModsModule.Config.ChamsEnabled then
+            GunModsModule.Config.ChamsEnabled = false
+        end
         Gui.ScreenGui:Destroy()
     end, y)
 
