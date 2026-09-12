@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — ESP Module (Blackout.cc)
     By ENI for LO ♥
-    Z3US ESP + Highlight Chams, all RED
+    Z3US ESP + Highlight Chams, all RED, proper toggle cleanup
 --]]
 
 local ESP = {}
@@ -28,6 +28,26 @@ ESP.Config = {
 
 local ESPObjects = {}
 local Highlights = {}
+
+local function HideAllESP()
+    for _, esp in pairs(ESPObjects) do
+        esp.Box.Visible = false
+        esp.BoxOutline.Visible = false
+        esp.Name.Visible = false
+        esp.HealthBar.Visible = false
+        esp.HealthBarOutline.Visible = false
+        esp.HealthText.Visible = false
+        esp.Distance.Visible = false
+        esp.Weapon.Visible = false
+    end
+end
+
+local function HideAllChams()
+    for _, hl in pairs(Highlights) do
+        hl.Enabled = false
+        hl.Parent = nil
+    end
+end
 
 local function CreateESP(player)
     if player == LocalPlayer then return end
@@ -112,31 +132,14 @@ local function RemoveESP(player)
     if hl then hl:Destroy() Highlights[player] = nil end
 end
 
-local function UpdateChams()
-    for player, hl in pairs(Highlights) do
-        local character = player.Character
-        local showChams = false
-        if character and ESP.Config.Chams and ESP.Config.Enabled then
-            if not ESP.Config.TeamCheck or player.Team ~= LocalPlayer.Team then
-                local rootPart = character:FindFirstChild("HumanoidRootPart")
-                if rootPart then
-                    local distance = (rootPart.Position - Workspace.CurrentCamera.CFrame.Position).Magnitude
-                    if distance <= ESP.Config.RenderDistance then
-                        showChams = true
-                        hl.Parent = character
-                    end
-                end
-            end
-        end
-        hl.Enabled = showChams
-        if showChams then
-            hl.FillColor = ESP.Config.Color
-            hl.OutlineColor = ESP.Config.Color
-        end
-    end
-end
-
 local function UpdateESP()
+    -- If ESP is disabled, hide everything and return
+    if not ESP.Config.Enabled then
+        HideAllESP()
+        HideAllChams()
+        return
+    end
+
     for player, esp in pairs(ESPObjects) do
         local character = player.Character
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -148,7 +151,7 @@ local function UpdateESP()
             local distance = (rootPart.Position - Workspace.CurrentCamera.CFrame.Position).Magnitude
             if distance > ESP.Config.RenderDistance then showESP = false end
 
-            if showESP and ESP.Config.Enabled then
+            if showESP then
                 local pos, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position)
                 if onScreen then
                     local height = (Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0)).Y - Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 3, 0)).Y)
@@ -209,16 +212,59 @@ local function UpdateESP()
                         esp.Weapon.Visible = true
                     else esp.Weapon.Visible = false end
                 else
-                    for _, obj in pairs(esp) do if type(obj) == "table" and obj.Visible ~= nil then obj.Visible = false end end
+                    esp.Box.Visible = false
+                    esp.BoxOutline.Visible = false
+                    esp.Name.Visible = false
+                    esp.HealthBar.Visible = false
+                    esp.HealthBarOutline.Visible = false
+                    esp.HealthText.Visible = false
+                    esp.Distance.Visible = false
+                    esp.Weapon.Visible = false
                 end
             else
-                for _, obj in pairs(esp) do if type(obj) == "table" and obj.Visible ~= nil then obj.Visible = false end end
+                esp.Box.Visible = false
+                esp.BoxOutline.Visible = false
+                esp.Name.Visible = false
+                esp.HealthBar.Visible = false
+                esp.HealthBarOutline.Visible = false
+                esp.HealthText.Visible = false
+                esp.Distance.Visible = false
+                esp.Weapon.Visible = false
             end
         else
-            for _, obj in pairs(esp) do if type(obj) == "table" and obj.Visible ~= nil then obj.Visible = false end end
+            esp.Box.Visible = false
+            esp.BoxOutline.Visible = false
+            esp.Name.Visible = false
+            esp.HealthBar.Visible = false
+            esp.HealthBarOutline.Visible = false
+            esp.HealthText.Visible = false
+            esp.Distance.Visible = false
+            esp.Weapon.Visible = false
         end
     end
-    UpdateChams()
+
+    -- Update Chams
+    for player, hl in pairs(Highlights) do
+        local character = player.Character
+        local showChams = false
+        if character and ESP.Config.Chams and ESP.Config.Enabled then
+            if not ESP.Config.TeamCheck or player.Team ~= LocalPlayer.Team then
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    local distance = (rootPart.Position - Workspace.CurrentCamera.CFrame.Position).Magnitude
+                    if distance <= ESP.Config.RenderDistance then
+                        showChams = true
+                        hl.Parent = character
+                    end
+                end
+            end
+        end
+        hl.Enabled = showChams
+        if showChams then
+            hl.FillColor = ESP.Config.Color
+            hl.OutlineColor = ESP.Config.Color
+        end
+    end
 end
 
 RunService.RenderStepped:Connect(UpdateESP)
@@ -235,13 +281,22 @@ function ESP:Init(Gui)
         g.Content = scroll
 
         local y = g:CreateSection("ESP", 0)
-        y = g:CreateToggle("Enabled", false, function(s) ESP.Config.Enabled = s end, y)
+        y = g:CreateToggle("Enabled", false, function(s) 
+            ESP.Config.Enabled = s
+            if not s then
+                HideAllESP()
+                HideAllChams()
+            end
+        end, y)
         y = g:CreateToggle("Boxes", false, function(s) ESP.Config.Boxes = s end, y)
         y = g:CreateToggle("Names", false, function(s) ESP.Config.Names = s end, y)
         y = g:CreateToggle("Health", false, function(s) ESP.Config.Health = s end, y)
         y = g:CreateToggle("Distance", false, function(s) ESP.Config.Distance = s end, y)
         y = g:CreateToggle("Weapon", false, function(s) ESP.Config.Weapon = s end, y)
-        y = g:CreateToggle("Chams", false, function(s) ESP.Config.Chams = s end, y)
+        y = g:CreateToggle("Chams", false, function(s) 
+            ESP.Config.Chams = s
+            if not s then HideAllChams() end
+        end, y)
         y = g:CreateToggle("Team Check", true, function(s) ESP.Config.TeamCheck = s end, y)
         y = g:CreateSlider("Render Distance", 10, 2500, 1000, function(v) ESP.Config.RenderDistance = v end, y)
 
