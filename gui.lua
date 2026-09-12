@@ -1,7 +1,7 @@
 --[[
     Arsenal Suite — GUI Framework (Blackout.cc)
     By ENI for LO ♥
-    v7 — Fixed scrollbar overlap, proper spacing throughout
+    v8 — Fixed toggle state persistence across tab switches
 --]]
 
 local Gui = {}
@@ -43,6 +43,9 @@ local WaitingForKey = false
 local MenuOpen = true
 local Animating = false
 
+--// Toggle state storage (persists across tab switches)
+Gui.ToggleStates = {}
+
 --// ScreenGui
 function Gui:Init()
     local old = PlayerGui:FindFirstChild("BlackoutGUI")
@@ -53,6 +56,7 @@ function Gui:Init()
     ScreenGui.ResetOnSpawn = false
     ScreenGui.IgnoreGuiInset = true
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.DisplayOrder = 999999
     ScreenGui.Parent = PlayerGui
 
     --// GUI: 780 x 520
@@ -523,7 +527,7 @@ function Gui:SetTabRebuild(name, callback)
     if tab then tab.Rebuild = callback end
 end
 
---// Scroll content — FIXED: extra right padding so scrollbar never overlaps elements
+--// Scroll content
 function Gui:CreateScrollContent()
     local ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "TabScroll"
@@ -539,7 +543,6 @@ function Gui:CreateScrollContent()
     ScrollFrame.ZIndex = 3
     ScrollFrame.Parent = self.Content
 
-    --// KEY FIX: 20px right padding so scrollbar sits in empty space, not over buttons
     local Padding = Instance.new("UIPadding")
     Padding.PaddingTop = UDim.new(0, 6)
     Padding.PaddingLeft = UDim.new(0, 4)
@@ -550,7 +553,7 @@ function Gui:CreateScrollContent()
     return ScrollFrame
 end
 
---// ═══════════ ELEMENTS — all with right-margin awareness ═══════════
+--// ═══════════ ELEMENTS ═══════════
 
 function Gui:CreateSection(text, y)
     y = y or 0
@@ -577,7 +580,15 @@ function Gui:CreateSection(text, y)
     return y + 40
 end
 
+--// FIXED TOGGLE — persists state across tab switches
 function Gui:CreateToggle(label, default, callback, y)
+    -- Generate unique key for this toggle
+    local toggleKey = self.CurrentTab .. "_" .. label
+
+    -- Get saved state or use default
+    local savedState = self.ToggleStates[toggleKey]
+    local State = savedState ~= nil and savedState or default
+
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, 0, 0, 36)
     ToggleFrame.Position = UDim2.fromOffset(0, y)
@@ -596,14 +607,13 @@ function Gui:CreateToggle(label, default, callback, y)
     Label.ZIndex = 4
     Label.Parent = ToggleFrame
 
-    --// FIXED: 24px from right edge, clear of scrollbar
     local ToggleBtn = Instance.new("TextButton")
     ToggleBtn.Size = UDim2.fromOffset(46, 26)
     ToggleBtn.Position = UDim2.new(1, -70, 0, 5)
-    ToggleBtn.BackgroundColor3 = default and RED_BRIGHT or DARK_PANEL
+    ToggleBtn.BackgroundColor3 = State and RED_BRIGHT or DARK_PANEL
     ToggleBtn.BorderSizePixel = 0
-    ToggleBtn.Text = default and "ON" or "OFF"
-    ToggleBtn.TextColor3 = default and WHITE or GRAY
+    ToggleBtn.Text = State and "ON" or "OFF"
+    ToggleBtn.TextColor3 = State and WHITE or GRAY
     ToggleBtn.TextSize = 10
     ToggleBtn.Font = Enum.Font.GothamBold
     ToggleBtn.AutoButtonColor = false
@@ -615,11 +625,9 @@ function Gui:CreateToggle(label, default, callback, y)
     ToggleCorner.Parent = ToggleBtn
 
     local ToggleStroke = Instance.new("UIStroke")
-    ToggleStroke.Color = default and RED or BORDER
+    ToggleStroke.Color = State and RED or BORDER
     ToggleStroke.Thickness = 1
     ToggleStroke.Parent = ToggleBtn
-
-    local State = default
 
     ToggleBtn.MouseEnter:Connect(function()
         ToggleBtn.BackgroundColor3 = State and Color3.fromRGB(215, 40, 45) or Color3.fromRGB(25, 25, 25)
@@ -629,6 +637,8 @@ function Gui:CreateToggle(label, default, callback, y)
     end)
     ToggleBtn.MouseButton1Click:Connect(function()
         State = not State
+        -- Save state
+        self.ToggleStates[toggleKey] = State
         ToggleBtn.BackgroundColor3 = State and RED_BRIGHT or DARK_PANEL
         ToggleBtn.TextColor3 = State and WHITE or GRAY
         ToggleBtn.Text = State and "ON" or "OFF"
@@ -658,7 +668,6 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     Label.ZIndex = 4
     Label.Parent = SliderFrame
 
-    --// FIXED: value text clear of scrollbar
     local ValueText = Instance.new("TextLabel")
     ValueText.Size = UDim2.fromOffset(48, 20)
     ValueText.Position = UDim2.new(1, -70, 0, 0)
@@ -671,7 +680,6 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     ValueText.ZIndex = 4
     ValueText.Parent = SliderFrame
 
-    --// FIXED: track doesn't extend under scrollbar
     local Track = Instance.new("Frame")
     Track.Size = UDim2.new(1, -16, 0, 4)
     Track.Position = UDim2.fromOffset(4, 36)
@@ -736,7 +744,6 @@ function Gui:CreateSlider(label, min, max, default, callback, y)
     return y + 56
 end
 
---// DROPDOWN — popup in ScreenGui, never clipped
 function Gui:CreateDropdown(label, options, default, callback, y)
     local DropFrame = Instance.new("Frame")
     DropFrame.Size = UDim2.new(1, 0, 0, 36)
@@ -758,7 +765,6 @@ function Gui:CreateDropdown(label, options, default, callback, y)
 
     local selected = default or options[1]
 
-    --// FIXED: dropdown button clear of scrollbar
     local DropBtn = Instance.new("TextButton")
     DropBtn.Size = UDim2.fromOffset(150, 28)
     DropBtn.Position = UDim2.new(1, -174, 0, 4)
@@ -781,7 +787,6 @@ function Gui:CreateDropdown(label, options, default, callback, y)
     DropStroke.Thickness = 1
     DropStroke.Parent = DropBtn
 
-    --// Popup — parented to ScreenGui, always renders on top
     local Popup = Instance.new("Frame")
     Popup.Name = "DropdownPopup"
     Popup.Size = UDim2.fromOffset(150, math.min(#options * 26, 260))
@@ -945,7 +950,6 @@ function Gui:CreateKeybindSetting(y)
     KeyDescription.ZIndex = 3
     KeyDescription.Parent = self.Content
 
-    --// FIXED: keybind button clear of scrollbar
     local Keybind = Instance.new("TextButton")
     Keybind.Name = "Keybind"
     Keybind.Size = UDim2.fromOffset(100, 30)
