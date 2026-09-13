@@ -40,10 +40,16 @@ local Animating = false
 --// Mouse unlock setting
 local UnlockMouseOnGUI = true
 local MouseUnlockConnection = nil
+local MouseUnlockHeartbeat = nil
 
 local function ForceUnlockMouse()
+    -- Mouse
     UserInputService.MouseBehavior = Enum.MouseBehavior.Default
     UserInputService.MouseIconEnabled = true
+    -- Force out of first person camera
+    if Player.CameraMode == Enum.CameraMode.LockFirstPerson then
+        Player.CameraMode = Enum.CameraMode.Classic
+    end
 end
 
 local function StartMouseUnlockLoop()
@@ -51,6 +57,19 @@ local function StartMouseUnlockLoop()
     MouseUnlockConnection = RunService.RenderStepped:Connect(function()
         if UnlockMouseOnGUI and MenuOpen then
             ForceUnlockMouse()
+        end
+    end)
+    MouseUnlockHeartbeat = RunService.Heartbeat:Connect(function()
+        if UnlockMouseOnGUI and MenuOpen then
+            ForceUnlockMouse()
+        end
+    end)
+    task.spawn(function()
+        while true do
+            if UnlockMouseOnGUI and MenuOpen then
+                ForceUnlockMouse()
+            end
+            task.wait(0.016)
         end
     end)
 end
@@ -413,7 +432,7 @@ function Gui:ShowMenu()
         Animating = false
     end)
 
-    -- Force unlock mouse immediately
+    -- Force unlock mouse + camera immediately
     if UnlockMouseOnGUI then
         ForceUnlockMouse()
     end
