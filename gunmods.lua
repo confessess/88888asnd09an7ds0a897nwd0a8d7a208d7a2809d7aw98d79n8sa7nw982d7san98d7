@@ -208,7 +208,7 @@ end
 --// ═══════════════════════════════════════════════════════════════
 --//  Z3US-STYLE VIEWMODEL CHAMS — Arsenal Specific
 --//  Handles guns + custom knives, clears textures so nothing
---//  looks blocky. Uses marker folders to avoid re-processing.
+--//  looks blocky. Stores originals so arms restore on toggle-off.
 --// ═══════════════════════════════════════════════════════════════
 
 local Viewmodel = {
@@ -216,6 +216,7 @@ local Viewmodel = {
     RainbowHue = 0,
     GunMarkerName = "ENI_GunChams",
     ArmMarkerName = "ENI_ArmChams",
+    OriginalArmData = {},
 }
 
 local MaterialsList = {
@@ -227,6 +228,7 @@ local function GetMaterial()
     return Enum.Material[GunMods.Config.ChamsMaterial] or Enum.Material.ForceField
 end
 
+--// Gun chams — apply to everything under Camera.Arms except CSSArms
 local function ApplyGunChams()
     local arms = Camera:FindFirstChild("Arms")
     if not arms then return end
@@ -271,12 +273,23 @@ local function ApplyGunChams()
     end
 end
 
+--// Arm chams — store originals before modifying so we can restore
+local function CleanupOriginalArmData()
+    for part, _ in pairs(Viewmodel.OriginalArmData) do
+        if not part or not part.Parent then
+            Viewmodel.OriginalArmData[part] = nil
+        end
+    end
+end
+
 local function ApplyArmChams()
     local arms = Camera:FindFirstChild("Arms")
     if not arms then return end
     local cssArms = arms:FindFirstChild("CSSArms")
     if not cssArms then return end
     if cssArms:FindFirstChild(Viewmodel.ArmMarkerName) then return end
+
+    CleanupOriginalArmData()
 
     local marker = Instance.new("Folder")
     marker.Name = Viewmodel.ArmMarkerName
@@ -287,30 +300,80 @@ local function ApplyArmChams()
 
     for _, desc in ipairs(cssArms:GetDescendants()) do
         if desc:IsA("BasePart") and desc.Transparency ~= 1 then
+            if not Viewmodel.OriginalArmData[desc] then
+                Viewmodel.OriginalArmData[desc] = {
+                    Color = desc.Color,
+                    Transparency = desc.Transparency,
+                    Material = desc.Material,
+                }
+            end
             desc.Color = col
             desc.Transparency = trans
         elseif desc:IsA("SpecialMesh") then
+            if not Viewmodel.OriginalArmData[desc] then
+                Viewmodel.OriginalArmData[desc] = {
+                    TextureId = desc.TextureId,
+                }
+            end
             desc.TextureId = ""
-        elseif desc:IsA("Decal") then
-            desc:Destroy()
+        elseif desc:IsA("Decal") or desc:IsA("Texture") then
+            if not Viewmodel.OriginalArmData[desc] then
+                Viewmodel.OriginalArmData[desc] = {
+                    Transparency = desc.Transparency,
+                }
+            end
+            desc.Transparency = 1
         end
     end
 end
 
-local function ClearChamMarkers()
+--// Restore arms to their original appearance
+local function RestoreArmChams()
+    local arms = Camera:FindFirstChild("Arms")
+    if not arms then return end
+    local cssArms = arms:FindFirstChild("CSSArms")
+    if not cssArms then return end
+
+    for part, data in pairs(Viewmodel.OriginalArmData) do
+        if part and part.Parent then
+            if part:IsA("BasePart") then
+                if data.Color then part.Color = data.Color end
+                if data.Transparency ~= nil then part.Transparency = data.Transparency end
+                if data.Material then part.Material = data.Material end
+            elseif part:IsA("SpecialMesh") then
+                if data.TextureId ~= nil then part.TextureId = data.TextureId end
+            elseif part:IsA("Decal") or part:IsA("Texture") then
+                if data.Transparency ~= nil then part.Transparency = data.Transparency end
+            end
+        end
+    end
+    Viewmodel.OriginalArmData = {}
+end
+
+--// Marker management
+local function ClearGunMarker()
     local arms = Camera:FindFirstChild("Arms")
     if arms then
         local gunMarker = arms:FindFirstChild(Viewmodel.GunMarkerName)
         if gunMarker then gunMarker:Destroy() end
-
-        local cssArms = arms:FindFirstChild("CSSArms")
-        if cssArms then
-            local armMarker = cssArms:FindFirstChild(Viewmodel.ArmMarkerName)
-            if armMarker then armMarker:Destroy() end
-        end
     end
 end
 
+local function ClearArmMarker()
+    local arms = Camera:FindFirstChild("Arms")
+    if not arms then return end
+    local cssArms = arms:FindFirstChild("CSSArms")
+    if not cssArms then return end
+    local armMarker = cssArms:FindFirstChild(Viewmodel.ArmMarkerName)
+    if armMarker then armMarker:Destroy() end
+end
+
+local function ClearAllMarkers()
+    ClearGunMarker()
+    ClearArmMarker()
+end
+
+--// Main chams loop
 local function StartChamsLoop()
     if Viewmodel.ChamConnection then return end
 
@@ -330,8 +393,9 @@ local function StartChamsLoop()
         if GunMods.Config.ChamsRainbow and GunMods.Config.ChamsEnabled then
             Viewmodel.RainbowHue = (Viewmodel.RainbowHue + dt * GunMods.Config.ChamsRainbowSpeed) % 1
             GunMods.Config.ChamsColor = Color3.fromHSV(Viewmodel.RainbowHue, 1, 1)
+            GunMods.Config.ArmsColor = GunMods.Config.ChamsColor
             -- Rainbow forces a refresh by destroying markers
-            ClearChamMarkers()
+            ClearAllMarkers()
         end
     end)
 end
@@ -341,7 +405,8 @@ local function StopChamsLoop()
         Viewmodel.ChamConnection:Disconnect()
         Viewmodel.ChamConnection = nil
     end
-    ClearChamMarkers()
+    ClearAllMarkers()
+    RestoreArmChams()
     Viewmodel.RainbowHue = 0
 end
 
@@ -430,10 +495,9 @@ function GunMods:Init(Gui)
             if state then
                 StartChamsLoop()
             else
+                ClearGunMarker()
                 if not GunMods.Config.ChamArms then
                     StopChamsLoop()
-                else
-                    ClearChamMarkers()
                 end
             end
         end, y)
@@ -442,6 +506,8 @@ function GunMods:Init(Gui)
             GunMods.Config.ChamsRainbow = state
             if not state then
                 GunMods.Config.ChamsColor = Color3.fromRGB(19, 0, 255)
+                GunMods.Config.ArmsColor = Color3.fromRGB(19, 0, 255)
+                ClearAllMarkers()
             end
         end, y)
 
@@ -450,10 +516,10 @@ function GunMods:Init(Gui)
             if state then
                 StartChamsLoop()
             else
+                ClearArmMarker()
+                RestoreArmChams()
                 if not GunMods.Config.ChamsEnabled then
                     StopChamsLoop()
-                else
-                    ClearChamMarkers()
                 end
             end
         end, y)
@@ -464,17 +530,17 @@ function GunMods:Init(Gui)
 
         y = g:CreateSlider("Transparency", 0, 100, math.floor(GunMods.Config.ChamsTransparency * 100), function(val)
             GunMods.Config.ChamsTransparency = val / 100
-            ClearChamMarkers()
+            ClearAllMarkers()
         end, y)
 
         y = g:CreateSlider("Reflectance", 0, 100, math.floor(GunMods.Config.ChamsReflectance * 100), function(val)
             GunMods.Config.ChamsReflectance = val / 100
-            ClearChamMarkers()
+            ClearAllMarkers()
         end, y)
 
         y = g:CreateDropdown("Material", MaterialsList, GunMods.Config.ChamsMaterial, function(val)
             GunMods.Config.ChamsMaterial = val
-            ClearChamMarkers()
+            ClearAllMarkers()
         end, y)
 
         y = g:CreateSection("Cham Colors", y + 10)
@@ -495,8 +561,9 @@ function GunMods:Init(Gui)
         for _, preset in ipairs(ColorPresets) do
             y = g:CreateButton(preset.Name, function()
                 GunMods.Config.ChamsColor = preset.Color
+                GunMods.Config.ArmsColor = preset.Color
                 GunMods.Config.ChamsRainbow = false
-                ClearChamMarkers()
+                ClearAllMarkers()
             end, y)
         end
 
@@ -520,7 +587,7 @@ function GunMods:Init(Gui)
         end
     end)
 
-    
+    print("[ENI] Gun Mods + Z3US Viewmodel Chams loaded")
     return self
 end
 
