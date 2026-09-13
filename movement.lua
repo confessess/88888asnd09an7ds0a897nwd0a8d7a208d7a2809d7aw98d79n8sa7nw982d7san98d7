@@ -10,17 +10,28 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 Movement.Config = {
+    -- Master switches (GUI toggles) -- these gate the hotkeys
     SpeedEnabled = false,
-    WalkSpeed = 50,
     FlyEnabled = false,
-    FlySpeed = 50,
-    Noclip = false,
-    ThirdPerson = false,
+    NoclipEnabled = false,
     BhopEnabled = false,
+    ThirdPersonEnabled = false,
+
+    -- Active states (controlled by hotkeys) -- these control actual functionality
+    SpeedActive = false,
+    FlyActive = false,
+    NoclipActive = false,
+    BhopActive = false,
+    ThirdPersonActive = false,
+
+    -- Settings
+    WalkSpeed = 50,
+    FlySpeed = 50,
     BhopSpeed = 40,
     BhopNormalSpeed = 22,
     BhopRayStartOffset = -3,
     BhopRayLength = 1,
+
     -- Toggle keys
     SpeedToggleKey = Enum.KeyCode.LeftShift,
     FlyToggleKey = Enum.KeyCode.F,
@@ -42,30 +53,30 @@ local function SetSpeed(speed)
 end
 
 LocalPlayer.CharacterAdded:Connect(function(char)
-    if Movement.Config.SpeedEnabled then
+    if Movement.Config.SpeedEnabled and Movement.Config.SpeedActive then
         char:WaitForChild("Humanoid")
         SetSpeed(Movement.Config.WalkSpeed)
     end
-    if Movement.Config.FlyEnabled then
+    if Movement.Config.FlyEnabled and Movement.Config.FlyActive then
         task.wait(0.3)
         Movement:StartFlying()
     end
-    if Movement.Config.Noclip then
+    if Movement.Config.NoclipEnabled and Movement.Config.NoclipActive then
         task.wait(0.5)
         Movement:StartNoclip()
     end
-    if Movement.Config.ThirdPerson then
+    if Movement.Config.ThirdPersonEnabled and Movement.Config.ThirdPersonActive then
         task.wait(0.5)
         Movement:EnableThirdPerson()
     end
-    if Movement.Config.BhopEnabled then
+    if Movement.Config.BhopEnabled and Movement.Config.BhopActive then
         task.wait(0.3)
         Movement:StartBhop()
     end
 end)
 
 RunService.RenderStepped:Connect(function()
-    if Movement.Config.SpeedEnabled and not Movement.Config.BhopEnabled then
+    if Movement.Config.SpeedEnabled and Movement.Config.SpeedActive and not Movement.Config.BhopActive then
         local char = LocalPlayer.Character
         if not char then return end
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -81,7 +92,7 @@ local BhopConnection = nil
 function Movement:StartBhop()
     if BhopConnection then return end
     BhopConnection = RunService.Heartbeat:Connect(function()
-        if not Movement.Config.BhopEnabled then return end
+        if not Movement.Config.BhopEnabled or not Movement.Config.BhopActive then return end
 
         local char = LocalPlayer.Character
         if not char then return end
@@ -99,14 +110,14 @@ function Movement:StartBhop()
             if rootPart then
                 local rayOrigin = rootPart.Position + Vector3.new(0, Movement.Config.BhopRayStartOffset, 0)
                 local rayDirection = Vector3.new(0, -Movement.Config.BhopRayLength, 0)
-                
+
                 local raycastParams = RaycastParams.new()
                 raycastParams.FilterDescendantsInstances = {char}
                 raycastParams.FilterType = Enum.RaycastFilterType.Exclude
                 raycastParams.IgnoreWater = true
-                
+
                 local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-                
+
                 if raycastResult then
                     humanoid.Jump = true
                 end
@@ -133,12 +144,26 @@ function Movement:StopBhop()
     end
 end
 
-function Movement:ToggleBhop(state)
+function Movement:SetBhopEnabled(state)
     Movement.Config.BhopEnabled = state
     if Movement.Gui then
         Movement.Gui:SetToggleState("Movement", "Bhop", state)
     end
-    if state then
+    if not state then
+        -- Master switch turned off -- force active off too
+        Movement.Config.BhopActive = false
+        Movement:StopBhop()
+    elseif state and Movement.Config.BhopActive then
+        -- Master switch turned on and was already active -- start it
+        Movement:StartBhop()
+    end
+end
+
+function Movement:ToggleBhopActive()
+    -- Hotkey only works if master switch is ON
+    if not Movement.Config.BhopEnabled then return end
+    Movement.Config.BhopActive = not Movement.Config.BhopActive
+    if Movement.Config.BhopActive then
         Movement:StartBhop()
     else
         Movement:StopBhop()
@@ -171,7 +196,7 @@ function Movement:StartFlying()
     BodyVelocity.Parent = hrp
 
     FlyConnection = RunService.Heartbeat:Connect(function()
-        if not Movement.Config.FlyEnabled then
+        if not Movement.Config.FlyEnabled or not Movement.Config.FlyActive then
             Movement:StopFlying()
             return
         end
@@ -241,12 +266,23 @@ function Movement:StopFlying()
     BodyGyro = nil
 end
 
-function Movement:ToggleFly(state)
+function Movement:SetFlyEnabled(state)
     Movement.Config.FlyEnabled = state
     if Movement.Gui then
         Movement.Gui:SetToggleState("Movement", "Fly", state)
     end
-    if state then
+    if not state then
+        Movement.Config.FlyActive = false
+        Movement:StopFlying()
+    elseif state and Movement.Config.FlyActive then
+        Movement:StartFlying()
+    end
+end
+
+function Movement:ToggleFlyActive()
+    if not Movement.Config.FlyEnabled then return end
+    Movement.Config.FlyActive = not Movement.Config.FlyActive
+    if Movement.Config.FlyActive then
         Movement:StartFlying()
     else
         Movement:StopFlying()
@@ -258,8 +294,6 @@ local thirdPersonConnection = nil
 local thirdPersonPropConnection = nil
 
 function Movement:EnableThirdPerson()
-    Movement.Config.ThirdPerson = true
-
     local function ForceThirdPerson()
         if LocalPlayer.CameraMode == Enum.CameraMode.LockFirstPerson then
             LocalPlayer.CameraMode = Enum.CameraMode.Classic
@@ -276,8 +310,6 @@ function Movement:EnableThirdPerson()
 end
 
 function Movement:DisableThirdPerson()
-    Movement.Config.ThirdPerson = false
-
     if thirdPersonConnection then
         thirdPersonConnection:Disconnect()
         thirdPersonConnection = nil
@@ -291,12 +323,23 @@ function Movement:DisableThirdPerson()
     LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
-function Movement:SetThirdPerson(enabled)
-    Movement.Config.ThirdPerson = enabled
+function Movement:SetThirdPersonEnabled(state)
+    Movement.Config.ThirdPersonEnabled = state
     if Movement.Gui then
-        Movement.Gui:SetToggleState("Movement", "3rd Person", enabled)
+        Movement.Gui:SetToggleState("Movement", "3rd Person", state)
     end
-    if enabled then
+    if not state then
+        Movement.Config.ThirdPersonActive = false
+        Movement:DisableThirdPerson()
+    elseif state and Movement.Config.ThirdPersonActive then
+        Movement:EnableThirdPerson()
+    end
+end
+
+function Movement:ToggleThirdPersonActive()
+    if not Movement.Config.ThirdPersonEnabled then return end
+    Movement.Config.ThirdPersonActive = not Movement.Config.ThirdPersonActive
+    if Movement.Config.ThirdPersonActive then
         Movement:EnableThirdPerson()
     else
         Movement:DisableThirdPerson()
@@ -309,6 +352,7 @@ local NoclipConnection = nil
 function Movement:StartNoclip()
     if NoclipConnection then NoclipConnection:Disconnect() end
     NoclipConnection = RunService.Stepped:Connect(function()
+        if not Movement.Config.NoclipEnabled or not Movement.Config.NoclipActive then return end
         local char = LocalPlayer.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
@@ -335,25 +379,51 @@ function Movement:StopNoclip()
     end
 end
 
-function Movement:SetNoclip(enabled)
-    Movement.Config.Noclip = enabled
+function Movement:SetNoclipEnabled(state)
+    Movement.Config.NoclipEnabled = state
     if Movement.Gui then
-        Movement.Gui:SetToggleState("Movement", "Noclip", enabled)
+        Movement.Gui:SetToggleState("Movement", "Noclip", state)
     end
-    if enabled then
+    if not state then
+        Movement.Config.NoclipActive = false
+        Movement:StopNoclip()
+    elseif state and Movement.Config.NoclipActive then
+        Movement:StartNoclip()
+    end
+end
+
+function Movement:ToggleNoclipActive()
+    if not Movement.Config.NoclipEnabled then return end
+    Movement.Config.NoclipActive = not Movement.Config.NoclipActive
+    if Movement.Config.NoclipActive then
         Movement:StartNoclip()
     else
         Movement:StopNoclip()
     end
 end
 
---// SPEED TOGGLE
-function Movement:ToggleSpeed(state)
+--// SPEED
+function Movement:SetSpeedEnabled(state)
     Movement.Config.SpeedEnabled = state
     if Movement.Gui then
         Movement.Gui:SetToggleState("Movement", "Speed", state)
     end
-    if state then
+    if not state then
+        Movement.Config.SpeedActive = false
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then humanoid.WalkSpeed = 16 end
+        end
+    elseif state and Movement.Config.SpeedActive then
+        SetSpeed(Movement.Config.WalkSpeed)
+    end
+end
+
+function Movement:ToggleSpeedActive()
+    if not Movement.Config.SpeedEnabled then return end
+    Movement.Config.SpeedActive = not Movement.Config.SpeedActive
+    if Movement.Config.SpeedActive then
         SetSpeed(Movement.Config.WalkSpeed)
     else
         local char = LocalPlayer.Character
@@ -510,7 +580,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Toggle handlers (FIXED: hotkeys only work when module is enabled)
+-- Hotkey handlers -- ONLY work when the corresponding master switch is ON
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
@@ -524,32 +594,24 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return false
     end
 
-    -- Speed: hotkey only works if Speed is already enabled (can only turn OFF, not ON)
+    -- Speed hotkey -- only works if SpeedEnabled (master switch) is ON
     if matches(Movement.Config.SpeedToggleKey) then
-        if Movement.Config.SpeedEnabled then
-            Movement:ToggleSpeed(false)
-        end
+        Movement:ToggleSpeedActive()
     end
 
-    -- Fly: hotkey only works if Fly is already enabled (can only turn OFF, not ON)
+    -- Fly hotkey -- only works if FlyEnabled (master switch) is ON
     if matches(Movement.Config.FlyToggleKey) then
-        if Movement.Config.FlyEnabled then
-            Movement:ToggleFly(false)
-        end
+        Movement:ToggleFlyActive()
     end
 
-    -- Noclip: hotkey only works if Noclip is already enabled (can only turn OFF, not ON)
+    -- Noclip hotkey -- only works if NoclipEnabled (master switch) is ON
     if matches(Movement.Config.NoclipToggleKey) then
-        if Movement.Config.Noclip then
-            Movement:SetNoclip(false)
-        end
+        Movement:ToggleNoclipActive()
     end
 
-    -- Bhop: hotkey only works if Bhop is already enabled (can only turn OFF, not ON)
+    -- Bhop hotkey -- only works if BhopEnabled (master switch) is ON
     if matches(Movement.Config.BhopToggleKey) then
-        if Movement.Config.BhopEnabled then
-            Movement:ToggleBhop(false)
-        end
+        Movement:ToggleBhopActive()
     end
 end)
 
@@ -564,17 +626,17 @@ function Movement:Init(Gui)
 
         local y = g:CreateSection("Character Movement", 0)
         y = g:CreateToggle("Speed", Movement.Config.SpeedEnabled, function(state)
-            Movement:ToggleSpeed(state)
+            Movement:SetSpeedEnabled(state)
         end, y)
         y = g:CreateSlider("Walk Speed", 16, 100, Movement.Config.WalkSpeed, function(val)
             Movement.Config.WalkSpeed = val
-            if Movement.Config.SpeedEnabled then SetSpeed(val) end
+            if Movement.Config.SpeedEnabled and Movement.Config.SpeedActive then SetSpeed(val) end
         end, y)
         y = CreateKeybindCapture(g, y, "Speed", "SpeedToggleKey")
 
         y = g:CreateSection("Bunny Hop", y + 16)
         y = g:CreateToggle("Bhop", Movement.Config.BhopEnabled, function(state)
-            Movement:ToggleBhop(state)
+            Movement:SetBhopEnabled(state)
         end, y)
         y = g:CreateSlider("Bhop Speed", 16, 100, Movement.Config.BhopSpeed, function(val)
             Movement.Config.BhopSpeed = val
@@ -583,7 +645,7 @@ function Movement:Init(Gui)
 
         y = g:CreateSection("Flight", y + 16)
         y = g:CreateToggle("Fly", Movement.Config.FlyEnabled, function(state)
-            Movement:ToggleFly(state)
+            Movement:SetFlyEnabled(state)
         end, y)
         y = g:CreateSlider("Fly Speed", 10, 200, Movement.Config.FlySpeed, function(val)
             Movement.Config.FlySpeed = val
@@ -591,13 +653,13 @@ function Movement:Init(Gui)
         y = CreateKeybindCapture(g, y, "Fly", "FlyToggleKey")
 
         y = g:CreateSection("Camera", y + 16)
-        y = g:CreateToggle("3rd Person", Movement.Config.ThirdPerson, function(state)
-            Movement:SetThirdPerson(state)
+        y = g:CreateToggle("3rd Person", Movement.Config.ThirdPersonEnabled, function(state)
+            Movement:SetThirdPersonEnabled(state)
         end, y)
 
         y = g:CreateSection("Movement", y + 16)
-        y = g:CreateToggle("Noclip", Movement.Config.Noclip, function(state)
-            Movement:SetNoclip(state)
+        y = g:CreateToggle("Noclip", Movement.Config.NoclipEnabled, function(state)
+            Movement:SetNoclipEnabled(state)
         end, y)
         y = CreateKeybindCapture(g, y, "Noclip", "NoclipToggleKey")
 
