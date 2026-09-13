@@ -132,7 +132,7 @@ local function StartSilentAim()
 
     local actor = getactors and getactors()[1]
     if not actor then
-        warn("No actor found for silent aim")
+        warn("[ENI] No actor found for silent aim")
         SilentAimRunning = false
         return
     end
@@ -279,9 +279,19 @@ local function StopSilentAim()
 end
 
 --// ═══════════════════════════════════════════════════════════════
---//  TRIGGERBOT
+--//  TRIGGERBOT — Fixed
 --// ═══════════════════════════════════════════════════════════════
-local LastTriggerTime = 0
+local NextTriggerTime = 0
+
+local function getPlayerFromPart(part)
+    local current = part
+    while current do
+        local plr = Players:GetPlayerFromCharacter(current)
+        if plr then return plr end
+        current = current.Parent
+    end
+    return nil
+end
 
 local function IsEnemyUnderCrosshair()
     local char = LocalPlayer.Character
@@ -291,18 +301,20 @@ local function IsEnemyUnderCrosshair()
 
     local origin = Camera.CFrame.Position
     local direction = Camera.CFrame.LookVector * 5000
+
+    local filter = {char}
+    local viewmodel = Camera:FindFirstChild("Arms")
+    if viewmodel then table.insert(filter, viewmodel) end
+
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {char}
+    params.FilterDescendantsInstances = filter
     params.IgnoreWater = true
 
     local result = Workspace:Raycast(origin, direction, params)
     if not result then return false end
 
-    local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
-    if not hitModel then return false end
-
-    local player = Players:GetPlayerFromCharacter(hitModel)
+    local player = getPlayerFromPart(result.Instance)
     if not player or player == LocalPlayer then return false end
 
     if Combat.Config.TeamCheck then
@@ -313,6 +325,9 @@ local function IsEnemyUnderCrosshair()
         end
     end
 
+    local hitModel = player.Character
+    if not hitModel then return false end
+
     local humanoid = hitModel:FindFirstChildOfClass("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return false end
 
@@ -322,23 +337,40 @@ local function IsEnemyUnderCrosshair()
     return true
 end
 
+local function Click()
+    if mouse1click then
+        mouse1click()
+        return
+    end
+    if mouse1press and mouse1release then
+        mouse1press()
+        task.wait(0.01)
+        mouse1release()
+        return
+    end
+    local ok, vim = pcall(function()
+        return game:GetService("VirtualInputManager")
+    end)
+    if ok and vim then
+        vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+        task.wait(0.01)
+        vim:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        return
+    end
+end
+
 local function TriggerbotTick()
     if not Combat.Config.TriggerbotEnabled then return end
     if not IsEnemyUnderCrosshair() then return end
 
     local now = tick()
-    local delay = (Combat.Config.TriggerbotDelay or 0) / 1000
-    local randomization = (Combat.Config.TriggerbotRandomization or 0) / 1000
-    local totalDelay = delay + (math.random() * randomization)
-
-    if now - LastTriggerTime >= totalDelay then
-        LastTriggerTime = now
-        pcall(function()
-            mouse1click()
-        end)
+    if now >= NextTriggerTime then
+        local delay = (Combat.Config.TriggerbotDelay or 0) / 1000
+        local randomization = (Combat.Config.TriggerbotRandomization or 0) / 1000
+        NextTriggerTime = now + delay + (math.random() * randomization)
+        pcall(Click)
     end
 end
-
 --// Input handlers
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end

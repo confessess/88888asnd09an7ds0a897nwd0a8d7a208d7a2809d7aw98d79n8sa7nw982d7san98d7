@@ -1,8 +1,3 @@
---[[
-    Arsenal Suite — World Module (Blackout.cc)
-    By ENI for LO ♥
-    v3 — Z3US Misc features + Custom Skyboxes added
---]]
 
 local World = {}
 World.__index = World
@@ -25,7 +20,7 @@ World.Config = {
     SelectedSkybox = "None",
 }
 
---// Z3US SKYBOX DATA
+--//  SKYBOX DATA
 local Skyboxes = {
     ["Purple Nebula"] = {
         SkyboxBk = "rbxassetid://159454299",
@@ -195,7 +190,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Z3US REDEEM ALL CODES
+--//  REDEEM ALL CODES
 local function RedeemAllCodes()
     local codes = {
         "POG", "BLOXY", "xonae", "JOHN", "POKE", "CBROX", "EPRIKA",
@@ -211,7 +206,7 @@ local function RedeemAllCodes()
    
 end
 
---// Z3US MOD CHECK
+--//  MOD CHECK
 local MOD_GROUP_ID = 2613928
 
 Players.PlayerAdded:Connect(function(player)
@@ -258,7 +253,7 @@ function World:Init(Gui)
             end
         end, y)
 
-        -- Z3US Custom Skyboxes
+        --  Custom Skyboxes
         y = g:CreateSection("Custom Skybox", y + 10)
 
         local skyboxNames = {"None", "Purple Nebula", "Night Sky", "Pink Daylight", "Morning Glow", "Minecraft", "Chill", "Setting Sun", "Fade Blue", "Twilight", "Elegant Morning", "Neptune", "Redshift", "Aesthetic Night"}
@@ -279,8 +274,8 @@ function World:Init(Gui)
             end
         end, y)
 
-        -- Z3US Misc Features
-        y = g:CreateSection("Z3US Misc", y + 10)
+        --  Misc Features
+        y = g:CreateSection(" Misc", y + 10)
 
         y = g:CreateButton("Redeem All Codes", function()
             RedeemAllCodes()
