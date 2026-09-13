@@ -510,7 +510,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Toggle handlers (FIXED: only toggle, don't trigger functionality)
+-- Toggle handlers (FIXED: hotkeys only work when module is enabled)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
@@ -524,24 +524,32 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return false
     end
 
-    -- Speed toggle
+    -- Speed: hotkey only works if Speed is already enabled (can only turn OFF, not ON)
     if matches(Movement.Config.SpeedToggleKey) then
-        Movement:ToggleSpeed(not Movement.Config.SpeedEnabled)
+        if Movement.Config.SpeedEnabled then
+            Movement:ToggleSpeed(false)
+        end
     end
 
-    -- Fly toggle
+    -- Fly: hotkey only works if Fly is already enabled (can only turn OFF, not ON)
     if matches(Movement.Config.FlyToggleKey) then
-        Movement:ToggleFly(not Movement.Config.FlyEnabled)
+        if Movement.Config.FlyEnabled then
+            Movement:ToggleFly(false)
+        end
     end
 
-    -- Noclip toggle
+    -- Noclip: hotkey only works if Noclip is already enabled (can only turn OFF, not ON)
     if matches(Movement.Config.NoclipToggleKey) then
-        Movement:SetNoclip(not Movement.Config.Noclip)
+        if Movement.Config.Noclip then
+            Movement:SetNoclip(false)
+        end
     end
 
-    -- Bhop toggle
+    -- Bhop: hotkey only works if Bhop is already enabled (can only turn OFF, not ON)
     if matches(Movement.Config.BhopToggleKey) then
-        Movement:ToggleBhop(not Movement.Config.BhopEnabled)
+        if Movement.Config.BhopEnabled then
+            Movement:ToggleBhop(false)
+        end
     end
 end)
 

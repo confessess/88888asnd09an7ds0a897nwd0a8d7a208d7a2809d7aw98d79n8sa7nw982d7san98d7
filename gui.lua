@@ -231,7 +231,7 @@ function Gui:Init()
     Subtitle.Size = UDim2.new(1, -140, 0, 18)
     Subtitle.Position = UDim2.fromOffset(23, 36)
     Subtitle.BackgroundTransparency = 1
-    Subtitle.Text = "Made by confess"
+    Subtitle.Text = "Made by confess & soph .gg/feuds"
     Subtitle.TextColor3 = GRAY
     Subtitle.TextSize = 11
     Subtitle.Font = Enum.Font.Gotham
