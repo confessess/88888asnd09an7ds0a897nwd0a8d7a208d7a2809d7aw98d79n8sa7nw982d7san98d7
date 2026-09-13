@@ -39,6 +39,17 @@ local Animating = false
 
 --// Mouse unlock setting
 local UnlockMouseOnGUI = false
+local MouseUnlockConnection = nil
+local function StartMouseUnlockLoop()
+    if MouseUnlockConnection then return end
+    MouseUnlockConnection = RunService.RenderStepped:Connect(function()
+        if UnlockMouseOnGUI and MenuOpen then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            UserInputService.MouseIconEnabled = true
+        end
+    end)
+end
+StartMouseUnlockLoop()
 
 --// Toggle state storage
 Gui.ToggleStates = {}
