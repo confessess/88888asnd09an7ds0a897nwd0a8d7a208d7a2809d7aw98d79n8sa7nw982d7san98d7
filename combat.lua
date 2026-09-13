@@ -1,5 +1,3 @@
-
-
 local Combat = {}
 Combat.__index = Combat
 
@@ -31,6 +29,8 @@ Combat.Config = {
     HitsoundsEnabled = false,
     Hitsound = "Skeet.cc",
     HitsoundVolume = 1,
+    BodyHitEnabled = false,
+    BodyHitChance = 30,
 }
 
 --// Drawing FOV Circle
@@ -187,6 +187,21 @@ local function StartSilentAim()
                 end
             end
 
+            -- Body hit redirection
+            if closest and closest.Parent and config.BodyHitEnabled then
+                local bodyChance = config.BodyHitChance or 0
+                if math.random(1, 100) <= bodyChance then
+                    local bodyParts = {"UpperTorso", "Torso", "HumanoidRootPart", "LowerTorso"}
+                    for _, partName in ipairs(bodyParts) do
+                        local part = closest.Parent:FindFirstChild(partName)
+                        if part then
+                            closest = part
+                            break
+                        end
+                    end
+                end
+            end
+
             return closest
         end
 
@@ -257,7 +272,9 @@ RunService.RenderStepped:Connect(function()
     getgenv().__SilentAimConfig = {
         Enabled = Combat.Config.SilentAimEnabled,
         FOV = Combat.Config.SilentAimFOV,
-        TeamCheck = Combat.Config.TeamCheck
+        TeamCheck = Combat.Config.TeamCheck,
+        BodyHitEnabled = Combat.Config.BodyHitEnabled,
+        BodyHitChance = Combat.Config.BodyHitChance,
     }
 
     -- Aimbot (hold or toggle mode)
@@ -490,6 +507,12 @@ function Combat:Init(Gui)
         y = g:CreateSlider("Silent Aim FOV", 50, 500, Combat.Config.SilentAimFOV, function(val)
             Combat.Config.SilentAimFOV = val
         end, y)
+        y = g:CreateToggle("Body Hit Redirection", Combat.Config.BodyHitEnabled, function(state)
+            Combat.Config.BodyHitEnabled = state
+        end, y)
+        y = g:CreateSlider("Body Hit Chance %", 0, 100, Combat.Config.BodyHitChance, function(val)
+            Combat.Config.BodyHitChance = val
+        end, y)
 
         y = g:CreateSection("Hitbox Expander", y + 10)
         y = g:CreateToggle("Hitbox Expander", Combat.Config.HitboxEnabled, function(state)
@@ -523,7 +546,7 @@ function Combat:Init(Gui)
         g.Content = originalContent
     end)
 
-   
+
     return self
 end
 

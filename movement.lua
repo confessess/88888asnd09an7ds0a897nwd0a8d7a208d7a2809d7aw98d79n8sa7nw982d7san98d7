@@ -167,7 +167,7 @@ function Movement:ToggleFly(state)
     end
 end
 
---// Z3US 3RD PERSON CAMERA
+--//  3RD PERSON CAMERA
 local thirdPersonConnection = nil
 
 function Movement:EnableThirdPerson()
@@ -212,7 +212,7 @@ function Movement:SetThirdPerson(enabled)
     end
 end
 
---// Z3US NOCLIP
+--//  NOCLIP
 local NoclipConnection = nil
 
 function Movement:StartNoclip()
@@ -288,12 +288,12 @@ function Movement:Init(Gui)
             Movement.Config.FlySpeed = val
         end, y)
 
-        y = g:CreateSection("Z3US Camera", y + 16)
+        y = g:CreateSection("Camera", y + 16)
         y = g:CreateToggle("3rd Person", false, function(state)
             Movement:SetThirdPerson(state)
         end, y)
 
-        y = g:CreateSection("Z3US Movement", y + 16)
+        y = g:CreateSection("Movement", y + 16)
         y = g:CreateToggle("Noclip", false, function(state)
             Movement:SetNoclip(state)
         end, y)
