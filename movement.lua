@@ -502,6 +502,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return false
     end
 
+    -- Speed toggle
     if matches(Movement.Config.SpeedToggleKey) then
         Movement.Config.SpeedEnabled = not Movement.Config.SpeedEnabled
         if Movement.Config.SpeedEnabled then
@@ -515,14 +516,17 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
 
+    -- Fly toggle
     if matches(Movement.Config.FlyToggleKey) then
         Movement:ToggleFly(not Movement.Config.FlyEnabled)
     end
 
+    -- Noclip toggle
     if matches(Movement.Config.NoclipToggleKey) then
         Movement:SetNoclip(not Movement.Config.Noclip)
     end
 
+    -- Bhop toggle
     if matches(Movement.Config.BhopToggleKey) then
         Movement:ToggleBhop(not Movement.Config.BhopEnabled)
     end
