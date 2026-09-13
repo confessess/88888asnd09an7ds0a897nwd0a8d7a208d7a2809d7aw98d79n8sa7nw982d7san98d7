@@ -14,7 +14,7 @@ Movement.Config = {
     WalkSpeed = 50,
     FlyEnabled = false,
     FlySpeed = 50,
-    FlySpeedMultiplier = 1.5, -- Adjust this to match velocity feel
+    FlySpeedMultiplier = 1.5,
     Noclip = false,
     ThirdPerson = false,
     BhopEnabled = false,
@@ -140,9 +140,10 @@ function Movement:ToggleBhop(state)
     end
 end
 
---// Fly logic (CFrame-based)
+--// Fly logic (CFrame-based, stays in place when not moving)
 local FlyConnection = nil
 local BodyGyro = nil
+local BodyVelocity = nil
 
 function Movement:StartFlying()
     local char = LocalPlayer.Character
@@ -153,12 +154,18 @@ function Movement:StartFlying()
 
     humanoid.PlatformStand = true
 
-    -- Only use BodyGyro for rotation, no BodyVelocity
+    -- BodyGyro for rotation
     BodyGyro = Instance.new("BodyGyro")
     BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
     BodyGyro.P = 10000
     BodyGyro.CFrame = hrp.CFrame
     BodyGyro.Parent = hrp
+
+    -- BodyVelocity to hold position (zero velocity = hover)
+    BodyVelocity = Instance.new("BodyVelocity")
+    BodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+    BodyVelocity.Velocity = Vector3.zero
+    BodyVelocity.Parent = hrp
 
     FlyConnection = RunService.Heartbeat:Connect(function()
         if not Movement.Config.FlyEnabled then
@@ -194,13 +201,22 @@ function Movement:StartFlying()
             moveDir = moveDir - Vector3.new(0, 1, 0)
         end
 
-        -- Apply CFrame movement with speed multiplier
+        -- Apply CFrame movement or hold position
         if moveDir.Magnitude > 0 then
             moveDir = moveDir.Unit
             local effectiveSpeed = Movement.Config.FlySpeed * Movement.Config.FlySpeedMultiplier
             local deltaTime = RunService.Heartbeat:Wait()
             local newCFrame = currentHrp.CFrame + (moveDir * effectiveSpeed * deltaTime)
             currentHrp.CFrame = newCFrame
+            -- Zero out velocity while moving to prevent drift
+            if BodyVelocity and BodyVelocity.Parent then
+                BodyVelocity.Velocity = Vector3.zero
+            end
+        else
+            -- Hold position when not moving
+            if BodyVelocity and BodyVelocity.Parent then
+                BodyVelocity.Velocity = Vector3.zero
+            end
         end
 
         -- Update gyro to face camera
@@ -233,6 +249,7 @@ function Movement:StopFlying()
     end
 
     BodyGyro = nil
+    BodyVelocity = nil
 end
 
 function Movement:ToggleFly(state)
@@ -477,7 +494,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Toggle handlers
+-- Toggle handlers (only toggle, don't trigger when off)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
