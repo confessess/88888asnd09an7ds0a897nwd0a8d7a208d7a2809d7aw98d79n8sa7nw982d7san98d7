@@ -34,10 +34,6 @@ Combat.Config = {
     HitsoundVolume = 1,
     BodyHitEnabled = false,
     BodyHitChance = 30,
-    -- Triggerbot
-    TriggerbotEnabled = false,
-    TriggerbotDelay = 50,
-    TriggerbotRandomization = 0,
 }
 
 local FOV_Circle = Drawing.new("Circle")
@@ -278,99 +274,6 @@ local function StopSilentAim()
     getgenv().__SilentAimConfig.Enabled = false
 end
 
---// ═══════════════════════════════════════════════════════════════
---//  TRIGGERBOT — Fixed
---// ═══════════════════════════════════════════════════════════════
-local NextTriggerTime = 0
-
-local function getPlayerFromPart(part)
-    local current = part
-    while current do
-        local plr = Players:GetPlayerFromCharacter(current)
-        if plr then return plr end
-        current = current.Parent
-    end
-    return nil
-end
-
-local function IsEnemyUnderCrosshair()
-    local char = LocalPlayer.Character
-    if not char then return false end
-    local tool = char:FindFirstChildOfClass("Tool")
-    if not tool then return false end
-
-    local origin = Camera.CFrame.Position
-    local direction = Camera.CFrame.LookVector * 5000
-
-    local filter = {char}
-    local viewmodel = Camera:FindFirstChild("Arms")
-    if viewmodel then table.insert(filter, viewmodel) end
-
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = filter
-    params.IgnoreWater = true
-
-    local result = Workspace:Raycast(origin, direction, params)
-    if not result then return false end
-
-    local player = getPlayerFromPart(result.Instance)
-    if not player or player == LocalPlayer then return false end
-
-    if Combat.Config.TeamCheck then
-        local wkspc = ReplicatedStorage:FindFirstChild("wkspc")
-        local ffa = wkspc and wkspc:FindFirstChild("FFA")
-        if not (ffa and ffa.Value) and player.Team == LocalPlayer.Team then
-            return false
-        end
-    end
-
-    local hitModel = player.Character
-    if not hitModel then return false end
-
-    local humanoid = hitModel:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then return false end
-
-    local spawned = hitModel:FindFirstChild("Spawned")
-    if spawned and not spawned.Value then return false end
-
-    return true
-end
-
-local function Click()
-    if mouse1click then
-        mouse1click()
-        return
-    end
-    if mouse1press and mouse1release then
-        mouse1press()
-        task.wait(0.01)
-        mouse1release()
-        return
-    end
-    local ok, vim = pcall(function()
-        return game:GetService("VirtualInputManager")
-    end)
-    if ok and vim then
-        vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-        task.wait(0.01)
-        vim:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-        return
-    end
-end
-
-local function TriggerbotTick()
-    if not Combat.Config.TriggerbotEnabled then return end
-    if not IsEnemyUnderCrosshair() then return end
-
-    local now = tick()
-    if now >= NextTriggerTime then
-        local delay = (Combat.Config.TriggerbotDelay or 0) / 1000
-        local randomization = (Combat.Config.TriggerbotRandomization or 0) / 1000
-        NextTriggerTime = now + delay + (math.random() * randomization)
-        pcall(Click)
-    end
-end
 --// Input handlers
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
@@ -436,8 +339,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Triggerbot
-    TriggerbotTick()
 end)
 
 --// Hitbox Expander
@@ -775,17 +676,6 @@ function Combat:Init(Gui)
         end, y)
         y = g:CreateSlider("Body Hit Chance %", 0, 100, Combat.Config.BodyHitChance, function(val)
             Combat.Config.BodyHitChance = val
-        end, y)
-
-        y = g:CreateSection("Triggerbot", y + 10)
-        y = g:CreateToggle("Enabled", Combat.Config.TriggerbotEnabled, function(state)
-            Combat.Config.TriggerbotEnabled = state
-        end, y)
-        y = g:CreateSlider("Delay (ms)", 0, 500, Combat.Config.TriggerbotDelay, function(val)
-            Combat.Config.TriggerbotDelay = val
-        end, y)
-        y = g:CreateSlider("Randomization (ms)", 0, 200, Combat.Config.TriggerbotRandomization, function(val)
-            Combat.Config.TriggerbotRandomization = val
         end, y)
 
         y = g:CreateSection("Hitbox Expander", y + 10)

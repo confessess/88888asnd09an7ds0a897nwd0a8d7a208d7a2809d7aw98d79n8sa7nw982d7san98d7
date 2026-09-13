@@ -1,4 +1,3 @@
-
 local Gui = {}
 Gui.__index = Gui
 
@@ -38,7 +37,10 @@ local WaitingForKey = false
 local MenuOpen = true
 local Animating = false
 
---// Toggle state storage (persists across tab switches)
+--// Mouse unlock setting
+local UnlockMouseOnGUI = false
+
+--// Toggle state storage
 Gui.ToggleStates = {}
 
 --// ScreenGui
@@ -344,7 +346,6 @@ function Gui:Init()
         end
     end)
 
-    
     return self
 end
 
@@ -371,6 +372,14 @@ function Gui:HideMenu()
         self.Main.BackgroundTransparency = 0
         Animating = false
     end)
+
+    -- Unlock mouse if setting is enabled
+    if UnlockMouseOnGUI then
+        pcall(function()
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            UserInputService.MouseIconEnabled = true
+        end)
+    end
 end
 
 function Gui:ShowMenu()
@@ -394,6 +403,14 @@ function Gui:ShowMenu()
         self.Main.Size = self.OriginalSize
         Animating = false
     end)
+
+    -- Unlock mouse if setting is enabled
+    if UnlockMouseOnGUI then
+        pcall(function()
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            UserInputService.MouseIconEnabled = true
+        end)
+    end
 end
 
 --// CreateTab
@@ -575,12 +592,8 @@ function Gui:CreateSection(text, y)
     return y + 40
 end
 
---// FIXED TOGGLE — persists state across tab switches
 function Gui:CreateToggle(label, default, callback, y)
-    -- Generate unique key for this toggle
     local toggleKey = self.CurrentTab .. "_" .. label
-
-    -- Get saved state or use default
     local savedState = self.ToggleStates[toggleKey]
     local State = savedState ~= nil and savedState or default
 
@@ -632,7 +645,6 @@ function Gui:CreateToggle(label, default, callback, y)
     end)
     ToggleBtn.MouseButton1Click:Connect(function()
         State = not State
-        -- Save state
         self.ToggleStates[toggleKey] = State
         ToggleBtn.BackgroundColor3 = State and RED_BRIGHT or DARK_PANEL
         ToggleBtn.TextColor3 = State and WHITE or GRAY
@@ -984,6 +996,72 @@ function Gui:CreateKeybindSetting(y)
     end)
 
     return y + 58
+end
+
+--// New: Mouse unlock toggle for Settings tab
+function Gui:CreateMouseUnlockToggle(y)
+    local toggleKey = self.CurrentTab .. "_UnlockMouseOnGUI"
+    local savedState = self.ToggleStates[toggleKey]
+    local State = savedState ~= nil and savedState or false
+    UnlockMouseOnGUI = State
+
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 36)
+    ToggleFrame.Position = UDim2.fromOffset(0, y)
+    ToggleFrame.BackgroundTransparency = 1
+    ToggleFrame.ZIndex = 3
+    ToggleFrame.Parent = self.Content
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -70, 0, 36)
+    Label.BackgroundTransparency = 1
+    Label.Text = "Unlock Mouse on GUI Toggle"
+    Label.TextColor3 = LIGHT
+    Label.TextSize = 13
+    Label.Font = Enum.Font.GothamMedium
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.ZIndex = 4
+    Label.Parent = ToggleFrame
+
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Size = UDim2.fromOffset(46, 26)
+    ToggleBtn.Position = UDim2.new(1, -70, 0, 5)
+    ToggleBtn.BackgroundColor3 = State and RED_BRIGHT or DARK_PANEL
+    ToggleBtn.BorderSizePixel = 0
+    ToggleBtn.Text = State and "ON" or "OFF"
+    ToggleBtn.TextColor3 = State and WHITE or GRAY
+    ToggleBtn.TextSize = 10
+    ToggleBtn.Font = Enum.Font.GothamBold
+    ToggleBtn.AutoButtonColor = false
+    ToggleBtn.ZIndex = 4
+    ToggleBtn.Parent = ToggleFrame
+
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 6)
+    ToggleCorner.Parent = ToggleBtn
+
+    local ToggleStroke = Instance.new("UIStroke")
+    ToggleStroke.Color = State and RED or BORDER
+    ToggleStroke.Thickness = 1
+    ToggleStroke.Parent = ToggleBtn
+
+    ToggleBtn.MouseEnter:Connect(function()
+        ToggleBtn.BackgroundColor3 = State and Color3.fromRGB(215, 40, 45) or Color3.fromRGB(25, 25, 25)
+    end)
+    ToggleBtn.MouseLeave:Connect(function()
+        ToggleBtn.BackgroundColor3 = State and RED_BRIGHT or DARK_PANEL
+    end)
+    ToggleBtn.MouseButton1Click:Connect(function()
+        State = not State
+        self.ToggleStates[toggleKey] = State
+        UnlockMouseOnGUI = State
+        ToggleBtn.BackgroundColor3 = State and RED_BRIGHT or DARK_PANEL
+        ToggleBtn.TextColor3 = State and WHITE or GRAY
+        ToggleBtn.Text = State and "ON" or "OFF"
+        ToggleStroke.Color = State and RED or BORDER
+    end)
+
+    return y + 42
 end
 
 return Gui
