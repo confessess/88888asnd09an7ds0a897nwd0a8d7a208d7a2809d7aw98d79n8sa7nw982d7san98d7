@@ -1,4 +1,3 @@
-
 local BASE = "https://raw.githubusercontent.com/confessess/88888asnd09an7ds0a897nwd0a8d7a208d7a2809d7aw98d79n8sa7nw982d7san98d7/main/"
 
 local GuiModule = loadstring(game:HttpGet(BASE .. "gui.lua"))()
@@ -140,6 +139,7 @@ Gui:SetTabRebuild("Settings", function(g)
 
     local y = g:CreateSection("GUI", 0)
     y = g:CreateKeybindSetting(y)
+    y = g:CreateMouseUnlockToggle(y)
     y = g:CreateButton("Unload GUI", function()
         -- Clean shutdown: restore everything before destroying
         if GunModsModule.Config.ChamsEnabled then
@@ -158,4 +158,3 @@ Gui:SetTabRebuild("Settings", function(g)
 
     g.Content = originalContent
 end)
-
