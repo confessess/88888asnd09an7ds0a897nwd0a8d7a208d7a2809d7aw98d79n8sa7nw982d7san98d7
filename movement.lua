@@ -1,5 +1,3 @@
-
-
 local Movement = {}
 Movement.__index = Movement
 
@@ -169,6 +167,7 @@ end
 
 --//  3RD PERSON CAMERA
 local thirdPersonConnection = nil
+local thirdPersonPropConnection = nil
 
 function Movement:EnableThirdPerson()
     Movement.Config.ThirdPerson = true
@@ -186,10 +185,9 @@ function Movement:EnableThirdPerson()
     if thirdPersonConnection then thirdPersonConnection:Disconnect() end
     thirdPersonConnection = RunService.RenderStepped:Connect(ForceThirdPerson)
 
-    -- Also hook property changes
-    LocalPlayer:GetPropertyChangedSignal("CameraMode"):Connect(ForceThirdPerson)
-
-    
+    -- Also hook property changes — store this connection so we can kill it
+    if thirdPersonPropConnection then thirdPersonPropConnection:Disconnect() end
+    thirdPersonPropConnection = LocalPlayer:GetPropertyChangedSignal("CameraMode"):Connect(ForceThirdPerson)
 end
 
 function Movement:DisableThirdPerson()
@@ -200,8 +198,13 @@ function Movement:DisableThirdPerson()
         thirdPersonConnection = nil
     end
 
-    LocalPlayer.CameraMode = Enum.CameraMode.Classic
-   
+    if thirdPersonPropConnection then
+        thirdPersonPropConnection:Disconnect()
+        thirdPersonPropConnection = nil
+    end
+
+    -- Actually force first person back so it turns OFF
+    LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
 function Movement:SetThirdPerson(enabled)
@@ -301,7 +304,7 @@ function Movement:Init(Gui)
         g.Content = originalContent
     end)
 
-    
+
     return self
 end
 
