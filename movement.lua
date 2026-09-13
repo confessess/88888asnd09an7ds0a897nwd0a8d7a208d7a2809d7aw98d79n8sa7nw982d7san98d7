@@ -78,16 +78,7 @@ local BhopConnection = nil
 function Movement:StartBhop()
     if BhopConnection then return end
     BhopConnection = RunService.Heartbeat:Connect(function()
-        if not Movement.Config.BhopEnabled then
-            local char = LocalPlayer.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.WalkSpeed ~= Movement.Config.BhopNormalSpeed then
-                    humanoid.WalkSpeed = Movement.Config.BhopNormalSpeed
-                end
-            end
-            return
-        end
+        if not Movement.Config.BhopEnabled then return end
 
         local char = LocalPlayer.Character
         if not char then return end
