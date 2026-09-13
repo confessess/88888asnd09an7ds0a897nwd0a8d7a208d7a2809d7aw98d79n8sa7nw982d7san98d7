@@ -206,9 +206,8 @@ local function SetupCharacter(char)
 end
 
 --// ═══════════════════════════════════════════════════════════════
---//  Z3US-STYLE VIEWMODEL CHAMS — Arsenal Specific
---//  Handles guns + custom knives, clears textures so nothing
---//  looks blocky. Stores originals so arms restore on toggle-off.
+--//  VIEWMODEL CHAMS — Arsenal Specific
+--//  Stores originals so both guns AND arms restore on toggle-off.
 --// ═══════════════════════════════════════════════════════════════
 
 local Viewmodel = {
@@ -216,6 +215,7 @@ local Viewmodel = {
     RainbowHue = 0,
     GunMarkerName = "ENI_GunChams",
     ArmMarkerName = "ENI_ArmChams",
+    OriginalGunData = {},
     OriginalArmData = {},
 }
 
@@ -228,7 +228,61 @@ local function GetMaterial()
     return Enum.Material[GunMods.Config.ChamsMaterial] or Enum.Material.ForceField
 end
 
---// Gun chams — apply to everything under Camera.Arms except CSSArms
+local function CleanupOriginalData()
+    for part, _ in pairs(Viewmodel.OriginalGunData) do
+        if not part or not part.Parent then Viewmodel.OriginalGunData[part] = nil end
+    end
+    for part, _ in pairs(Viewmodel.OriginalArmData) do
+        if not part or not part.Parent then Viewmodel.OriginalArmData[part] = nil end
+    end
+end
+
+--// Snapshot gun parts before modifying
+local function SnapshotGunPart(part)
+    if not part or Viewmodel.OriginalGunData[part] then return end
+    if part:IsA("BasePart") then
+        Viewmodel.OriginalGunData[part] = {
+            Color = part.Color,
+            Transparency = part.Transparency,
+            Material = part.Material,
+            Reflectance = part.Reflectance,
+        }
+    elseif part:IsA("MeshPart") then
+        Viewmodel.OriginalGunData[part] = {
+            Color = part.Color,
+            Transparency = part.Transparency,
+            Material = part.Material,
+            Reflectance = part.Reflectance,
+            TextureID = part.TextureID,
+        }
+    elseif part:IsA("SpecialMesh") then
+        Viewmodel.OriginalGunData[part] = {
+            TextureId = part.TextureId,
+        }
+    end
+end
+
+--// Snapshot arm parts before modifying
+local function SnapshotArmPart(part)
+    if not part or Viewmodel.OriginalArmData[part] then return end
+    if part:IsA("BasePart") then
+        Viewmodel.OriginalArmData[part] = {
+            Color = part.Color,
+            Transparency = part.Transparency,
+            Material = part.Material,
+        }
+    elseif part:IsA("SpecialMesh") then
+        Viewmodel.OriginalArmData[part] = {
+            TextureId = part.TextureId,
+        }
+    elseif part:IsA("Decal") or part:IsA("Texture") then
+        Viewmodel.OriginalArmData[part] = {
+            Transparency = part.Transparency,
+        }
+    end
+end
+
+--// Apply gun chams
 local function ApplyGunChams()
     local arms = Camera:FindFirstChild("Arms")
     if not arms then return end
@@ -247,41 +301,38 @@ local function ApplyGunChams()
         if child.Name == "CSSArms" then continue end
 
         if child:IsA("BasePart") and child.Transparency ~= 1 then
+            SnapshotGunPart(child)
             child.Color = col
             child.Reflectance = refl
             child.Transparency = trans
             child.Material = mat
         end
         if child:IsA("MeshPart") then
+            SnapshotGunPart(child)
             child.TextureID = ""
         end
 
         for _, desc in ipairs(child:GetDescendants()) do
             if desc:IsA("BasePart") then
+                SnapshotGunPart(desc)
                 desc.Color = col
                 desc.Reflectance = refl
                 desc.Transparency = trans
                 desc.Material = mat
             end
             if desc:IsA("MeshPart") then
+                SnapshotGunPart(desc)
                 desc.TextureID = ""
             end
             if desc:IsA("SpecialMesh") then
+                SnapshotGunPart(desc)
                 desc.TextureId = ""
             end
         end
     end
 end
 
---// Arm chams — store originals before modifying so we can restore
-local function CleanupOriginalArmData()
-    for part, _ in pairs(Viewmodel.OriginalArmData) do
-        if not part or not part.Parent then
-            Viewmodel.OriginalArmData[part] = nil
-        end
-    end
-end
-
+--// Apply arm chams
 local function ApplyArmChams()
     local arms = Camera:FindFirstChild("Arms")
     if not arms then return end
@@ -289,7 +340,7 @@ local function ApplyArmChams()
     if not cssArms then return end
     if cssArms:FindFirstChild(Viewmodel.ArmMarkerName) then return end
 
-    CleanupOriginalArmData()
+    CleanupOriginalData()
 
     local marker = Instance.new("Folder")
     marker.Name = Viewmodel.ArmMarkerName
@@ -300,34 +351,44 @@ local function ApplyArmChams()
 
     for _, desc in ipairs(cssArms:GetDescendants()) do
         if desc:IsA("BasePart") and desc.Transparency ~= 1 then
-            if not Viewmodel.OriginalArmData[desc] then
-                Viewmodel.OriginalArmData[desc] = {
-                    Color = desc.Color,
-                    Transparency = desc.Transparency,
-                    Material = desc.Material,
-                }
-            end
+            SnapshotArmPart(desc)
             desc.Color = col
             desc.Transparency = trans
         elseif desc:IsA("SpecialMesh") then
-            if not Viewmodel.OriginalArmData[desc] then
-                Viewmodel.OriginalArmData[desc] = {
-                    TextureId = desc.TextureId,
-                }
-            end
+            SnapshotArmPart(desc)
             desc.TextureId = ""
         elseif desc:IsA("Decal") or desc:IsA("Texture") then
-            if not Viewmodel.OriginalArmData[desc] then
-                Viewmodel.OriginalArmData[desc] = {
-                    Transparency = desc.Transparency,
-                }
-            end
+            SnapshotArmPart(desc)
             desc.Transparency = 1
         end
     end
 end
 
---// Restore arms to their original appearance
+--// Restore gun parts
+local function RestoreGunChams()
+    local arms = Camera:FindFirstChild("Arms")
+    if not arms then return end
+
+    for part, data in pairs(Viewmodel.OriginalGunData) do
+        if part and part.Parent then
+            if part:IsA("BasePart") or part:IsA("MeshPart") then
+                if data.Color then part.Color = data.Color end
+                if data.Transparency ~= nil then part.Transparency = data.Transparency end
+                if data.Material then part.Material = data.Material end
+                if data.Reflectance ~= nil then part.Reflectance = data.Reflectance end
+            end
+            if part:IsA("MeshPart") and data.TextureID ~= nil then
+                part.TextureID = data.TextureID
+            end
+            if part:IsA("SpecialMesh") and data.TextureId ~= nil then
+                part.TextureId = data.TextureId
+            end
+        end
+    end
+    Viewmodel.OriginalGunData = {}
+end
+
+--// Restore arm parts
 local function RestoreArmChams()
     local arms = Camera:FindFirstChild("Arms")
     if not arms then return end
@@ -394,7 +455,6 @@ local function StartChamsLoop()
             Viewmodel.RainbowHue = (Viewmodel.RainbowHue + dt * GunMods.Config.ChamsRainbowSpeed) % 1
             GunMods.Config.ChamsColor = Color3.fromHSV(Viewmodel.RainbowHue, 1, 1)
             GunMods.Config.ArmsColor = GunMods.Config.ChamsColor
-            -- Rainbow forces a refresh by destroying markers
             ClearAllMarkers()
         end
     end)
@@ -406,6 +466,7 @@ local function StopChamsLoop()
         Viewmodel.ChamConnection = nil
     end
     ClearAllMarkers()
+    RestoreGunChams()
     RestoreArmChams()
     Viewmodel.RainbowHue = 0
 end
@@ -496,6 +557,7 @@ function GunMods:Init(Gui)
                 StartChamsLoop()
             else
                 ClearGunMarker()
+                RestoreGunChams()
                 if not GunMods.Config.ChamArms then
                     StopChamsLoop()
                 end
