@@ -28,6 +28,9 @@ Movement.Config = {
     BhopToggleKey = Enum.KeyCode.B,
 }
 
+--// Store GUI reference
+Movement.Gui = nil
+
 --// Speed logic
 local function SetSpeed(speed)
     local char = LocalPlayer.Character
@@ -132,6 +135,9 @@ end
 
 function Movement:ToggleBhop(state)
     Movement.Config.BhopEnabled = state
+    if Movement.Gui then
+        Movement.Gui:SetToggleState("Movement", "Bhop", state)
+    end
     if state then
         Movement:StartBhop()
     else
@@ -139,7 +145,7 @@ function Movement:ToggleBhop(state)
     end
 end
 
---// Fly logic (EXACT copy from standalone CFrame fly)
+--// Fly logic (CFrame-based)
 local FlyConnection = nil
 local BodyVelocity = nil
 local BodyGyro = nil
@@ -151,10 +157,8 @@ function Movement:StartFlying()
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not humanoid then return end
 
-    -- Disable default physics
     humanoid.PlatformStand = true
 
-    -- Create body movers
     BodyGyro = Instance.new("BodyGyro")
     BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
     BodyGyro.P = 10000
@@ -166,7 +170,6 @@ function Movement:StartFlying()
     BodyVelocity.Velocity = Vector3.zero
     BodyVelocity.Parent = hrp
 
-    -- CFrame manipulation loop
     FlyConnection = RunService.Heartbeat:Connect(function()
         if not Movement.Config.FlyEnabled then
             Movement:StopFlying()
@@ -179,7 +182,6 @@ function Movement:StartFlying()
         local currentHumanoid = currentChar:FindFirstChildOfClass("Humanoid")
         if not currentHrp or not currentHumanoid then return end
 
-        -- Get movement input
         local moveDir = Vector3.zero
 
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then
@@ -201,14 +203,12 @@ function Movement:StartFlying()
             moveDir = moveDir - Vector3.new(0, 1, 0)
         end
 
-        -- Apply movement via CFrame
         if moveDir.Magnitude > 0 then
             moveDir = moveDir.Unit * Movement.Config.FlySpeed
             local newCFrame = currentHrp.CFrame + (moveDir * RunService.Heartbeat:Wait())
             currentHrp.CFrame = newCFrame
         end
 
-        -- Update gyro to face camera
         if BodyGyro and BodyGyro.Parent then
             BodyGyro.CFrame = Camera.CFrame
         end
@@ -243,6 +243,9 @@ end
 
 function Movement:ToggleFly(state)
     Movement.Config.FlyEnabled = state
+    if Movement.Gui then
+        Movement.Gui:SetToggleState("Movement", "Fly", state)
+    end
     if state then
         Movement:StartFlying()
     else
@@ -289,6 +292,10 @@ function Movement:DisableThirdPerson()
 end
 
 function Movement:SetThirdPerson(enabled)
+    Movement.Config.ThirdPerson = enabled
+    if Movement.Gui then
+        Movement.Gui:SetToggleState("Movement", "3rd Person", enabled)
+    end
     if enabled then
         Movement:EnableThirdPerson()
     else
@@ -330,10 +337,30 @@ end
 
 function Movement:SetNoclip(enabled)
     Movement.Config.Noclip = enabled
+    if Movement.Gui then
+        Movement.Gui:SetToggleState("Movement", "Noclip", enabled)
+    end
     if enabled then
         Movement:StartNoclip()
     else
         Movement:StopNoclip()
+    end
+end
+
+--// SPEED TOGGLE
+function Movement:ToggleSpeed(state)
+    Movement.Config.SpeedEnabled = state
+    if Movement.Gui then
+        Movement.Gui:SetToggleState("Movement", "Speed", state)
+    end
+    if state then
+        SetSpeed(Movement.Config.WalkSpeed)
+    else
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then humanoid.WalkSpeed = 16 end
+        end
     end
 end
 
@@ -483,7 +510,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Toggle handlers (FIXED: only toggle, don't trigger when off)
+-- Toggle handlers (FIXED: only toggle, don't trigger functionality)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
@@ -497,31 +524,22 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return false
     end
 
-    -- Speed toggle (only toggles, doesn't apply speed when turning off)
+    -- Speed toggle
     if matches(Movement.Config.SpeedToggleKey) then
-        Movement.Config.SpeedEnabled = not Movement.Config.SpeedEnabled
-        if Movement.Config.SpeedEnabled then
-            SetSpeed(Movement.Config.WalkSpeed)
-        else
-            local char = LocalPlayer.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid then humanoid.WalkSpeed = 16 end
-            end
-        end
+        Movement:ToggleSpeed(not Movement.Config.SpeedEnabled)
     end
 
-    -- Fly toggle (only toggles)
+    -- Fly toggle
     if matches(Movement.Config.FlyToggleKey) then
         Movement:ToggleFly(not Movement.Config.FlyEnabled)
     end
 
-    -- Noclip toggle (only toggles)
+    -- Noclip toggle
     if matches(Movement.Config.NoclipToggleKey) then
         Movement:SetNoclip(not Movement.Config.Noclip)
     end
 
-    -- Bhop toggle (only toggles)
+    -- Bhop toggle
     if matches(Movement.Config.BhopToggleKey) then
         Movement:ToggleBhop(not Movement.Config.BhopEnabled)
     end
@@ -538,16 +556,7 @@ function Movement:Init(Gui)
 
         local y = g:CreateSection("Character Movement", 0)
         y = g:CreateToggle("Speed", Movement.Config.SpeedEnabled, function(state)
-            Movement.Config.SpeedEnabled = state
-            if state then
-                SetSpeed(Movement.Config.WalkSpeed)
-            else
-                local char = LocalPlayer.Character
-                if char then
-                    local humanoid = char:FindFirstChildOfClass("Humanoid")
-                    if humanoid then humanoid.WalkSpeed = 16 end
-                end
-            end
+            Movement:ToggleSpeed(state)
         end, y)
         y = g:CreateSlider("Walk Speed", 16, 100, Movement.Config.WalkSpeed, function(val)
             Movement.Config.WalkSpeed = val
@@ -574,12 +583,12 @@ function Movement:Init(Gui)
         y = CreateKeybindCapture(g, y, "Fly", "FlyToggleKey")
 
         y = g:CreateSection("Camera", y + 16)
-        y = g:CreateToggle("3rd Person", false, function(state)
+        y = g:CreateToggle("3rd Person", Movement.Config.ThirdPerson, function(state)
             Movement:SetThirdPerson(state)
         end, y)
 
         y = g:CreateSection("Movement", y + 16)
-        y = g:CreateToggle("Noclip", false, function(state)
+        y = g:CreateToggle("Noclip", Movement.Config.Noclip, function(state)
             Movement:SetNoclip(state)
         end, y)
         y = CreateKeybindCapture(g, y, "Noclip", "NoclipToggleKey")

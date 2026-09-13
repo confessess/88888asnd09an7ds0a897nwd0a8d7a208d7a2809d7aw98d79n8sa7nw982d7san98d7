@@ -54,7 +54,6 @@ end
 local function StartMouseUnlockLoop()
     if MouseUnlockConnection then return end
 
-    -- Hook Arsenal trying to force first person back on
     CameraModeHook = Player:GetPropertyChangedSignal("CameraMode"):Connect(function()
         if UnlockMouseOnGUI and MenuOpen and Player.CameraMode == Enum.CameraMode.LockFirstPerson then
             Player.CameraMode = Enum.CameraMode.Classic
@@ -85,6 +84,18 @@ StartMouseUnlockLoop()
 --// Toggle state storage
 Gui.ToggleStates = {}
 
+--// NEW: Get toggle state
+function Gui:GetToggleState(tabName, label)
+    local toggleKey = tabName .. "_" .. label
+    return self.ToggleStates[toggleKey]
+end
+
+--// NEW: Set toggle state (for hotkey sync)
+function Gui:SetToggleState(tabName, label, state)
+    local toggleKey = tabName .. "_" .. label
+    self.ToggleStates[toggleKey] = state
+end
+
 --// ScreenGui
 function Gui:Init()
     local old = PlayerGui:FindFirstChild("BlackoutGUI")
@@ -98,7 +109,6 @@ function Gui:Init()
     ScreenGui.DisplayOrder = 999999
     ScreenGui.Parent = PlayerGui
 
-    --// GUI: 780 x 520
     local Main = Instance.new("Frame")
     Main.Name = "Main"
     Main.Size = UDim2.fromOffset(780, 520)
@@ -121,7 +131,6 @@ function Gui:Init()
     local SavedPosition = Main.Position
     local OriginalSize = Main.Size
 
-    --// Background + Wave
     local Background = Instance.new("Frame")
     Background.Name = "Background"
     Background.Size = UDim2.fromScale(1, 1)
@@ -174,7 +183,6 @@ function Gui:Init()
         end)
     end
 
-    --// TopBar
     local Top = Instance.new("Frame")
     Top.Name = "TopBar"
     Top.Size = UDim2.new(1, 0, 0, 64)
@@ -231,7 +239,6 @@ function Gui:Init()
     Subtitle.ZIndex = 6
     Subtitle.Parent = Top
 
-    --// CLOSE BUTTON
     local Close = Instance.new("TextButton")
     Close.Name = "Close"
     Close.Size = UDim2.fromOffset(32, 30)
@@ -254,7 +261,6 @@ function Gui:Init()
     Close.MouseLeave:Connect(function() Close.BackgroundColor3 = WHITE end)
     Close.MouseButton1Click:Connect(function() self:HideMenu() end)
 
-    --// Sidebar
     local Sidebar = Instance.new("Frame")
     Sidebar.Name = "Sidebar"
     Sidebar.Size = UDim2.fromOffset(170, 428)
@@ -286,7 +292,6 @@ function Gui:Init()
     TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     TabLayout.Parent = Sidebar
 
-    --// Content
     local Content = Instance.new("Frame")
     Content.Name = "Content"
     Content.Size = UDim2.new(1, -228, 1, -92)
@@ -319,7 +324,6 @@ function Gui:Init()
     ContentSubtitle.ZIndex = 3
     ContentSubtitle.Parent = Content
 
-    --// Dragging
     local Dragging = false
     local DragStart
     local StartPosition
@@ -362,7 +366,6 @@ function Gui:Init()
     self.CurrentTab = nil
     self.TabButtons = {}
 
-    --// Toggle key
     UserInputService.InputBegan:Connect(function(input, processed)
         if WaitingForKey then
             if input.UserInputType == Enum.UserInputType.Keyboard then
@@ -414,7 +417,6 @@ function Gui:HideMenu()
         self.Main.BackgroundTransparency = 0
         Animating = false
     end)
-
 end
 
 function Gui:ShowMenu()
@@ -439,13 +441,11 @@ function Gui:ShowMenu()
         Animating = false
     end)
 
-    -- Force unlock mouse + camera immediately
     if UnlockMouseOnGUI then
         ForceUnlockMouse()
     end
 end
 
---// CreateTab
 function Gui:CreateTab(name, description)
     description = description or "Configure your " .. name:lower() .. " settings."
     local index = #self.Tabs + 1
@@ -571,7 +571,6 @@ function Gui:SetTabRebuild(name, callback)
     if tab then tab.Rebuild = callback end
 end
 
---// Scroll content
 function Gui:CreateScrollContent()
     local ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "TabScroll"
@@ -596,8 +595,6 @@ function Gui:CreateScrollContent()
 
     return ScrollFrame
 end
-
---// ═══════════ ELEMENTS ═══════════
 
 function Gui:CreateSection(text, y)
     y = y or 0
@@ -1030,7 +1027,6 @@ function Gui:CreateKeybindSetting(y)
     return y + 58
 end
 
---// New: Mouse unlock toggle for Settings tab
 function Gui:CreateMouseUnlockToggle(y)
     local toggleKey = self.CurrentTab .. "_UnlockMouseOnGUI"
     local savedState = self.ToggleStates[toggleKey]
