@@ -65,7 +65,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
         task.wait(0.5)
         Movement:StartNoclip()
     end
-    if Movement.Config.ThirdPersonEnabled and Movement.Config.ThirdPersonActive then
+    if Movement.Config.ThirdPersonEnabled then
         task.wait(0.5)
         Movement:EnableThirdPerson()
     end
@@ -325,21 +325,11 @@ end
 
 function Movement:SetThirdPersonEnabled(state)
     Movement.Config.ThirdPersonEnabled = state
+    Movement.Config.ThirdPersonActive = state
     if Movement.Gui then
         Movement.Gui:SetToggleState("Movement", "3rd Person", state)
     end
-    if not state then
-        Movement.Config.ThirdPersonActive = false
-        Movement:DisableThirdPerson()
-    elseif state and Movement.Config.ThirdPersonActive then
-        Movement:EnableThirdPerson()
-    end
-end
-
-function Movement:ToggleThirdPersonActive()
-    if not Movement.Config.ThirdPersonEnabled then return end
-    Movement.Config.ThirdPersonActive = not Movement.Config.ThirdPersonActive
-    if Movement.Config.ThirdPersonActive then
+    if state then
         Movement:EnableThirdPerson()
     else
         Movement:DisableThirdPerson()
