@@ -281,12 +281,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         IsAiming = true
     end
     if Combat.Config.AimbotToggleMode then
-        if typeof(Combat.Config.AimbotToggleKey) == "EnumItem" then
-            if input.KeyCode == Combat.Config.AimbotToggleKey then
+        local key = Combat.Config.AimbotToggleKey
+        if typeof(key) == "EnumItem" then
+            if key.EnumType == Enum.KeyCode and input.KeyCode == key then
                 Combat.Config.AimbotActive = not Combat.Config.AimbotActive
-            end
-        elseif typeof(Combat.Config.AimbotToggleKey) == "EnumItem" and Combat.Config.AimbotToggleKey.EnumType == Enum.UserInputType then
-            if input.UserInputType == Combat.Config.AimbotToggleKey then
+            elseif key.EnumType == Enum.UserInputType and input.UserInputType == key then
                 Combat.Config.AimbotActive = not Combat.Config.AimbotActive
             end
         end
