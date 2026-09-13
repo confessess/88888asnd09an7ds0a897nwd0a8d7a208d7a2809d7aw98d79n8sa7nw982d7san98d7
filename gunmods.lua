@@ -587,7 +587,7 @@ function GunMods:Init(Gui)
         end
     end)
 
-    print("[ENI] Gun Mods + Z3US Viewmodel Chams loaded")
+    
     return self
 end
 

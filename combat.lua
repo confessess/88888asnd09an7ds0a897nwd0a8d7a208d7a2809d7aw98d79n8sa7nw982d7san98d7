@@ -34,6 +34,10 @@ Combat.Config = {
     HitsoundVolume = 1,
     BodyHitEnabled = false,
     BodyHitChance = 30,
+    -- Triggerbot
+    TriggerbotEnabled = false,
+    TriggerbotDelay = 50,
+    TriggerbotRandomization = 0,
 }
 
 local FOV_Circle = Drawing.new("Circle")
@@ -128,7 +132,7 @@ local function StartSilentAim()
 
     local actor = getactors and getactors()[1]
     if not actor then
-        warn("[ENI] No actor found for silent aim")
+        warn("No actor found for silent aim")
         SilentAimRunning = false
         return
     end
@@ -211,7 +215,6 @@ local function StartSilentAim()
                 end
             end
 
-            -- Body hit redirection
             if closest and closest.Parent and config.BodyHitEnabled then
                 local chance = config.BodyHitChance or 0
                 if math.random(1, 100) <= chance then
@@ -237,7 +240,6 @@ local function StartSilentAim()
             target = GetClosestPlayer()
         end)
 
-        -- Original Z3US signature: 2 args, 2 upvalues, 17 constants, name <= 10
         for i, v in pairs(getgc()) do
             if type(v) == "function" and islclosure(v) then
                 if debug.info(v, "a") == 2 and #debug.getupvalues(v) == 2 and #debug.getconstants(v) == 17 and debug.info(v, "n"):len() <= 10 then
@@ -274,6 +276,67 @@ local function StopSilentAim()
     SilentAimRunning = false
     getgenv().__SilentAimConfig = getgenv().__SilentAimConfig or {}
     getgenv().__SilentAimConfig.Enabled = false
+end
+
+--// ═══════════════════════════════════════════════════════════════
+--//  TRIGGERBOT
+--// ═══════════════════════════════════════════════════════════════
+local LastTriggerTime = 0
+
+local function IsEnemyUnderCrosshair()
+    local char = LocalPlayer.Character
+    if not char then return false end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then return false end
+
+    local origin = Camera.CFrame.Position
+    local direction = Camera.CFrame.LookVector * 5000
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {char}
+    params.IgnoreWater = true
+
+    local result = Workspace:Raycast(origin, direction, params)
+    if not result then return false end
+
+    local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
+    if not hitModel then return false end
+
+    local player = Players:GetPlayerFromCharacter(hitModel)
+    if not player or player == LocalPlayer then return false end
+
+    if Combat.Config.TeamCheck then
+        local wkspc = ReplicatedStorage:FindFirstChild("wkspc")
+        local ffa = wkspc and wkspc:FindFirstChild("FFA")
+        if not (ffa and ffa.Value) and player.Team == LocalPlayer.Team then
+            return false
+        end
+    end
+
+    local humanoid = hitModel:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return false end
+
+    local spawned = hitModel:FindFirstChild("Spawned")
+    if spawned and not spawned.Value then return false end
+
+    return true
+end
+
+local function TriggerbotTick()
+    if not Combat.Config.TriggerbotEnabled then return end
+    if not IsEnemyUnderCrosshair() then return end
+
+    local now = tick()
+    local delay = (Combat.Config.TriggerbotDelay or 0) / 1000
+    local randomization = (Combat.Config.TriggerbotRandomization or 0) / 1000
+    local totalDelay = delay + (math.random() * randomization)
+
+    if now - LastTriggerTime >= totalDelay then
+        LastTriggerTime = now
+        pcall(function()
+            mouse1click()
+        end)
+    end
 end
 
 --// Input handlers
@@ -340,6 +403,9 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
+
+    -- Triggerbot
+    TriggerbotTick()
 end)
 
 --// Hitbox Expander
@@ -601,7 +667,6 @@ local function CreateKeybindCapture(g, y)
     return y + 42
 end
 
--- Capture any key or mouse button
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not WaitingForAimKey then return end
     if gameProcessed then return end
@@ -678,6 +743,17 @@ function Combat:Init(Gui)
         end, y)
         y = g:CreateSlider("Body Hit Chance %", 0, 100, Combat.Config.BodyHitChance, function(val)
             Combat.Config.BodyHitChance = val
+        end, y)
+
+        y = g:CreateSection("Triggerbot", y + 10)
+        y = g:CreateToggle("Enabled", Combat.Config.TriggerbotEnabled, function(state)
+            Combat.Config.TriggerbotEnabled = state
+        end, y)
+        y = g:CreateSlider("Delay (ms)", 0, 500, Combat.Config.TriggerbotDelay, function(val)
+            Combat.Config.TriggerbotDelay = val
+        end, y)
+        y = g:CreateSlider("Randomization (ms)", 0, 200, Combat.Config.TriggerbotRandomization, function(val)
+            Combat.Config.TriggerbotRandomization = val
         end, y)
 
         y = g:CreateSection("Hitbox Expander", y + 10)
