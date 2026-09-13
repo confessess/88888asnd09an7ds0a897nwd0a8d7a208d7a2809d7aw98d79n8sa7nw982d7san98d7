@@ -16,10 +16,16 @@ Movement.Config = {
     FlySpeed = 50,
     Noclip = false,
     ThirdPerson = false,
+    BhopEnabled = false,
+    BhopSpeed = 40,
+    BhopNormalSpeed = 22,
+    BhopRayStartOffset = -3,
+    BhopRayLength = 1,
     -- Toggle keys
     SpeedToggleKey = Enum.KeyCode.LeftShift,
     FlyToggleKey = Enum.KeyCode.F,
     NoclipToggleKey = Enum.KeyCode.N,
+    BhopToggleKey = Enum.KeyCode.B,
 }
 
 --// Speed logic
@@ -49,10 +55,14 @@ LocalPlayer.CharacterAdded:Connect(function(char)
         task.wait(0.5)
         Movement:EnableThirdPerson()
     end
+    if Movement.Config.BhopEnabled then
+        task.wait(0.3)
+        Movement:StartBhop()
+    end
 end)
 
 RunService.RenderStepped:Connect(function()
-    if Movement.Config.SpeedEnabled then
+    if Movement.Config.SpeedEnabled and not Movement.Config.BhopEnabled then
         local char = LocalPlayer.Character
         if not char then return end
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -61,6 +71,82 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+--// Bhop logic
+local BhopConnection = nil
+
+function Movement:StartBhop()
+    if BhopConnection then return end
+    BhopConnection = RunService.Heartbeat:Connect(function()
+        if not Movement.Config.BhopEnabled then
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.WalkSpeed ~= Movement.Config.BhopNormalSpeed then
+                    humanoid.WalkSpeed = Movement.Config.BhopNormalSpeed
+                end
+            end
+            return
+        end
+
+        local char = LocalPlayer.Character
+        if not char then return end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+
+        local holdingSpace = UserInputService:IsKeyDown(Enum.KeyCode.Space)
+
+        if holdingSpace then
+            if humanoid.WalkSpeed ~= Movement.Config.BhopSpeed then
+                humanoid.WalkSpeed = Movement.Config.BhopSpeed
+            end
+
+            local rootPart = char:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                local rayOrigin = rootPart.Position + Vector3.new(0, Movement.Config.BhopRayStartOffset, 0)
+                local rayDirection = Vector3.new(0, -Movement.Config.BhopRayLength, 0)
+                
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterDescendantsInstances = {char}
+                raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+                raycastParams.IgnoreWater = true
+                
+                local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+                
+                if raycastResult then
+                    humanoid.Jump = true
+                end
+            end
+        else
+            if humanoid.WalkSpeed ~= Movement.Config.BhopNormalSpeed then
+                humanoid.WalkSpeed = Movement.Config.BhopNormalSpeed
+            end
+        end
+    end)
+end
+
+function Movement:StopBhop()
+    if BhopConnection then
+        BhopConnection:Disconnect()
+        BhopConnection = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = Movement.Config.BhopNormalSpeed
+        end
+    end
+end
+
+function Movement:ToggleBhop(state)
+    Movement.Config.BhopEnabled = state
+    if state then
+        Movement:StartBhop()
+    else
+        Movement:StopBhop()
+    end
+end
 
 --// Fly logic
 local FlyConnection = nil
@@ -293,7 +379,8 @@ local function UpdateKeybindButton(name)
     local key = nil
     if name == "Speed" then key = Movement.Config.SpeedToggleKey
     elseif name == "Fly" then key = Movement.Config.FlyToggleKey
-    elseif name == "Noclip" then key = Movement.Config.NoclipToggleKey end
+    elseif name == "Noclip" then key = Movement.Config.NoclipToggleKey
+    elseif name == "Bhop" then key = Movement.Config.BhopToggleKey end
     btn.Text = "Bind: " .. GetKeyDisplayName(key)
 end
 
@@ -387,7 +474,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
         if name == "Speed" then Movement.Config.SpeedToggleKey = captured
         elseif name == "Fly" then Movement.Config.FlyToggleKey = captured
-        elseif name == "Noclip" then Movement.Config.NoclipToggleKey = captured end
+        elseif name == "Noclip" then Movement.Config.NoclipToggleKey = captured
+        elseif name == "Bhop" then Movement.Config.BhopToggleKey = captured end
 
         UpdateKeybindButton(name)
         local btn = KeybindButtons[name]
@@ -434,6 +522,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if matches(Movement.Config.NoclipToggleKey) then
         Movement:SetNoclip(not Movement.Config.Noclip)
     end
+
+    if matches(Movement.Config.BhopToggleKey) then
+        Movement:ToggleBhop(not Movement.Config.BhopEnabled)
+    end
 end)
 
 --// GUI
@@ -463,6 +555,15 @@ function Movement:Init(Gui)
             if Movement.Config.SpeedEnabled then SetSpeed(val) end
         end, y)
         y = CreateKeybindCapture(g, y, "Speed", "SpeedToggleKey")
+
+        y = g:CreateSection("Bunny Hop", y + 16)
+        y = g:CreateToggle("Bhop", Movement.Config.BhopEnabled, function(state)
+            Movement:ToggleBhop(state)
+        end, y)
+        y = g:CreateSlider("Bhop Speed", 16, 100, Movement.Config.BhopSpeed, function(val)
+            Movement.Config.BhopSpeed = val
+        end, y)
+        y = CreateKeybindCapture(g, y, "Bhop", "BhopToggleKey")
 
         y = g:CreateSection("Flight", y + 16)
         y = g:CreateToggle("Fly", Movement.Config.FlyEnabled, function(state)
