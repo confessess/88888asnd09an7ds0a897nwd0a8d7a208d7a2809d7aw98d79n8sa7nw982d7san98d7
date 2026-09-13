@@ -14,7 +14,6 @@ Movement.Config = {
     WalkSpeed = 50,
     FlyEnabled = false,
     FlySpeed = 50,
-    FlySpeedMultiplier = 1.5,
     Noclip = false,
     ThirdPerson = false,
     BhopEnabled = false,
@@ -140,10 +139,10 @@ function Movement:ToggleBhop(state)
     end
 end
 
---// Fly logic (CFrame-based, stays in place when not moving)
+--// Fly logic (EXACT copy from standalone CFrame fly)
 local FlyConnection = nil
-local BodyGyro = nil
 local BodyVelocity = nil
+local BodyGyro = nil
 
 function Movement:StartFlying()
     local char = LocalPlayer.Character
@@ -152,21 +151,22 @@ function Movement:StartFlying()
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not humanoid then return end
 
+    -- Disable default physics
     humanoid.PlatformStand = true
 
-    -- BodyGyro for rotation
+    -- Create body movers
     BodyGyro = Instance.new("BodyGyro")
     BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
     BodyGyro.P = 10000
     BodyGyro.CFrame = hrp.CFrame
     BodyGyro.Parent = hrp
 
-    -- BodyVelocity to hold position (zero velocity = hover)
     BodyVelocity = Instance.new("BodyVelocity")
     BodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
     BodyVelocity.Velocity = Vector3.zero
     BodyVelocity.Parent = hrp
 
+    -- CFrame manipulation loop
     FlyConnection = RunService.Heartbeat:Connect(function()
         if not Movement.Config.FlyEnabled then
             Movement:StopFlying()
@@ -201,22 +201,11 @@ function Movement:StartFlying()
             moveDir = moveDir - Vector3.new(0, 1, 0)
         end
 
-        -- Apply CFrame movement or hold position
+        -- Apply movement via CFrame
         if moveDir.Magnitude > 0 then
-            moveDir = moveDir.Unit
-            local effectiveSpeed = Movement.Config.FlySpeed * Movement.Config.FlySpeedMultiplier
-            local deltaTime = RunService.Heartbeat:Wait()
-            local newCFrame = currentHrp.CFrame + (moveDir * effectiveSpeed * deltaTime)
+            moveDir = moveDir.Unit * Movement.Config.FlySpeed
+            local newCFrame = currentHrp.CFrame + (moveDir * RunService.Heartbeat:Wait())
             currentHrp.CFrame = newCFrame
-            -- Zero out velocity while moving to prevent drift
-            if BodyVelocity and BodyVelocity.Parent then
-                BodyVelocity.Velocity = Vector3.zero
-            end
-        else
-            -- Hold position when not moving
-            if BodyVelocity and BodyVelocity.Parent then
-                BodyVelocity.Velocity = Vector3.zero
-            end
         end
 
         -- Update gyro to face camera
@@ -248,8 +237,8 @@ function Movement:StopFlying()
         end
     end
 
-    BodyGyro = nil
     BodyVelocity = nil
+    BodyGyro = nil
 end
 
 function Movement:ToggleFly(state)
@@ -494,7 +483,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Toggle handlers (only toggle, don't trigger when off)
+-- Toggle handlers (FIXED: only toggle, don't trigger when off)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
@@ -508,7 +497,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return false
     end
 
-    -- Speed toggle
+    -- Speed toggle (only toggles, doesn't apply speed when turning off)
     if matches(Movement.Config.SpeedToggleKey) then
         Movement.Config.SpeedEnabled = not Movement.Config.SpeedEnabled
         if Movement.Config.SpeedEnabled then
@@ -522,17 +511,17 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
 
-    -- Fly toggle
+    -- Fly toggle (only toggles)
     if matches(Movement.Config.FlyToggleKey) then
         Movement:ToggleFly(not Movement.Config.FlyEnabled)
     end
 
-    -- Noclip toggle
+    -- Noclip toggle (only toggles)
     if matches(Movement.Config.NoclipToggleKey) then
         Movement:SetNoclip(not Movement.Config.Noclip)
     end
 
-    -- Bhop toggle
+    -- Bhop toggle (only toggles)
     if matches(Movement.Config.BhopToggleKey) then
         Movement:ToggleBhop(not Movement.Config.BhopEnabled)
     end
