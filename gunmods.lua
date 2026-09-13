@@ -1,5 +1,3 @@
-
-
 local GunMods = {}
 GunMods.__index = GunMods
 
@@ -21,15 +19,18 @@ GunMods.Config = {
     FireRate = 0.03,
 
     ChamsEnabled = false,
-    ChamsMaterial = "Neon",
-    ChamsColor = Color3.fromRGB(255, 0, 0),
+    ChamsMaterial = "ForceField",
+    ChamsColor = Color3.fromRGB(19, 0, 255),
     ChamsRainbow = false,
     ChamsRainbowSpeed = 2,
     ChamsTransparency = 0,
+    ChamsReflectance = 0,
     ChamArms = false,
+    ArmsColor = Color3.fromRGB(19, 0, 255),
+    ArmsTransparency = 0.5,
 }
 
--- Gun mods state tracking (same as before)
+-- Gun mods state tracking
 local ModStates = {
     NoRecoil = { Active = false, Modified = {} },
     NoSpread = { Active = false, Modified = {} },
@@ -124,7 +125,7 @@ local function StopModsLoopIfIdle()
     end
 end
 
---// Z3US ALWAYS AUTO
+--// ALWAYS AUTO
 local originalAutoValues = {}
 
 local function SetAlwaysAuto(enabled)
@@ -143,7 +144,6 @@ local function SetAlwaysAuto(enabled)
             end
         end
     end
-    print("[Z3US] Always Auto: " .. tostring(enabled))
 end
 
 --// Infinite Ammo
@@ -205,156 +205,147 @@ local function SetupCharacter(char)
     end)
 end
 
--- Viewmodel chams (same as before)
+--// ═══════════════════════════════════════════════════════════════
+--//  Z3US-STYLE VIEWMODEL CHAMS — Arsenal Specific
+--//  Handles guns + custom knives, clears textures so nothing
+--//  looks blocky. Uses marker folders to avoid re-processing.
+--// ═══════════════════════════════════════════════════════════════
+
 local Viewmodel = {
-    CurrentModel = nil,
-    CurrentWeaponName = nil,
-    OriginalParts = {},
-    WatchConnection = nil,
-    PollConnection = nil,
     ChamConnection = nil,
     RainbowHue = 0,
+    GunMarkerName = "ENI_GunChams",
+    ArmMarkerName = "ENI_ArmChams",
 }
 
-local function IsViewmodelModel(model)
-    if not model or not model:IsA("Model") then return false end
-    local hasWeaponParts = false
-    for _, desc in ipairs(model:GetDescendants()) do
-        if desc:IsA("MeshPart") then
-            hasWeaponParts = true
-            break
-        end
-    end
-    return hasWeaponParts
+local MaterialsList = {
+    "ForceField", "Neon", "Glass", "Ice", "Metal",
+    "Plastic", "SmoothPlastic"
+}
+
+local function GetMaterial()
+    return Enum.Material[GunMods.Config.ChamsMaterial] or Enum.Material.ForceField
 end
 
-local function GetViewmodelWeaponModel(viewmodel)
-    if not viewmodel then return nil end
-    if viewmodel.Name:match("^v_") then
-        return viewmodel
-    end
-    for _, child in ipairs(viewmodel:GetChildren()) do
-        if child:IsA("Model") and child.Name:match("^v_") then
-            return child
-        end
-    end
-    if IsViewmodelModel(viewmodel) then
-        return viewmodel
-    end
-    return nil
-end
+local function ApplyGunChams()
+    local arms = Camera:FindFirstChild("Arms")
+    if not arms then return end
+    if arms:FindFirstChild(Viewmodel.GunMarkerName) then return end
 
-local function RestoreViewmodelParts()
-    for part, data in pairs(Viewmodel.OriginalParts) do
-        if part and part.Parent then
-            part.Color = data.Color
-            part.Material = data.Material
-            part.Transparency = data.Transparency
-        end
-    end
-    Viewmodel.OriginalParts = {}
-end
+    local marker = Instance.new("Folder")
+    marker.Name = Viewmodel.GunMarkerName
+    marker.Parent = arms
 
-local function ScrapeViewmodelParts(weaponModel)
-    local parts = {}
-    for _, desc in ipairs(weaponModel:GetDescendants()) do
-        if desc:IsA("BasePart") or desc:IsA("MeshPart") or desc:IsA("UnionOperation") then
-            if GunMods.Config.ChamArms or not desc.Name:lower():find("arm") then
-                table.insert(parts, desc)
+    local mat = GetMaterial()
+    local col = GunMods.Config.ChamsColor
+    local refl = GunMods.Config.ChamsReflectance
+    local trans = GunMods.Config.ChamsTransparency
+
+    for _, child in ipairs(arms:GetChildren()) do
+        if child.Name == "CSSArms" then continue end
+
+        if child:IsA("BasePart") and child.Transparency ~= 1 then
+            child.Color = col
+            child.Reflectance = refl
+            child.Transparency = trans
+            child.Material = mat
+        end
+        if child:IsA("MeshPart") then
+            child.TextureID = ""
+        end
+
+        for _, desc in ipairs(child:GetDescendants()) do
+            if desc:IsA("BasePart") then
+                desc.Color = col
+                desc.Reflectance = refl
+                desc.Transparency = trans
+                desc.Material = mat
+            end
+            if desc:IsA("MeshPart") then
+                desc.TextureID = ""
+            end
+            if desc:IsA("SpecialMesh") then
+                desc.TextureId = ""
             end
         end
     end
-    return parts
 end
 
-local function ApplyChamsToViewmodel(weaponModel, color)
-    if not weaponModel then return end
-    local material = Enum.Material[GunMods.Config.ChamsMaterial] or Enum.Material.Neon
-    local parts = ScrapeViewmodelParts(weaponModel)
-    for _, part in ipairs(parts) do
-        if not Viewmodel.OriginalParts[part] then
-            Viewmodel.OriginalParts[part] = {
-                Color = part.Color,
-                Material = part.Material,
-                Transparency = part.Transparency,
-            }
-        end
-        part.Material = material
-        part.Color = color
-        part.Transparency = GunMods.Config.ChamsTransparency
-    end
-end
+local function ApplyArmChams()
+    local arms = Camera:FindFirstChild("Arms")
+    if not arms then return end
+    local cssArms = arms:FindFirstChild("CSSArms")
+    if not cssArms then return end
+    if cssArms:FindFirstChild(Viewmodel.ArmMarkerName) then return end
 
-local function OnViewmodelChanged(newModel)
-    RestoreViewmodelParts()
-    Viewmodel.CurrentModel = nil
-    Viewmodel.CurrentWeaponName = nil
-    if not GunMods.Config.ChamsEnabled then return end
-    if not newModel then return end
-    local weaponModel = GetViewmodelWeaponModel(newModel)
-    if not weaponModel then return end
-    Viewmodel.CurrentModel = weaponModel
-    Viewmodel.CurrentWeaponName = weaponModel.Name
-    ApplyChamsToViewmodel(weaponModel, GunMods.Config.ChamsColor)
-end
+    local marker = Instance.new("Folder")
+    marker.Name = Viewmodel.ArmMarkerName
+    marker.Parent = cssArms
 
-local function StartViewmodelWatcher()
-    if Viewmodel.WatchConnection then return end
-    Viewmodel.WatchConnection = Camera.ChildAdded:Connect(function(child)
-        task.wait(0.05)
-        if IsViewmodelModel(child) then
-            OnViewmodelChanged(child)
-        end
-    end)
-    Viewmodel.PollConnection = task.spawn(function()
-        while GunMods.Config.ChamsEnabled do
-            task.wait(0.3)
-            local found = nil
-            for _, child in ipairs(Camera:GetChildren()) do
-                if IsViewmodelModel(child) then
-                    found = child
-                    break
-                end
-            end
-            if found and found ~= Viewmodel.CurrentModel then
-                OnViewmodelChanged(found)
-            elseif not found and Viewmodel.CurrentModel then
-                OnViewmodelChanged(nil)
-            end
-        end
-        Viewmodel.PollConnection = nil
-    end)
-    Viewmodel.ChamConnection = RunService.Heartbeat:Connect(function(dt)
-        if not GunMods.Config.ChamsEnabled then return end
-        if not GunMods.Config.ChamsRainbow then return end
-        if not Viewmodel.CurrentModel then return end
-        Viewmodel.RainbowHue = (Viewmodel.RainbowHue + dt * GunMods.Config.ChamsRainbowSpeed) % 1
-        local color = Color3.fromHSV(Viewmodel.RainbowHue, 0.9, 1)
-        ApplyChamsToViewmodel(Viewmodel.CurrentModel, color)
-    end)
-    for _, child in ipairs(Camera:GetChildren()) do
-        if IsViewmodelModel(child) then
-            OnViewmodelChanged(child)
-            break
+    local col = GunMods.Config.ArmsColor
+    local trans = GunMods.Config.ArmsTransparency
+
+    for _, desc in ipairs(cssArms:GetDescendants()) do
+        if desc:IsA("BasePart") and desc.Transparency ~= 1 then
+            desc.Color = col
+            desc.Transparency = trans
+        elseif desc:IsA("SpecialMesh") then
+            desc.TextureId = ""
+        elseif desc:IsA("Decal") then
+            desc:Destroy()
         end
     end
 end
 
-local function StopViewmodelWatcher()
-    if Viewmodel.WatchConnection then
-        Viewmodel.WatchConnection:Disconnect()
-        Viewmodel.WatchConnection = nil
+local function ClearChamMarkers()
+    local arms = Camera:FindFirstChild("Arms")
+    if arms then
+        local gunMarker = arms:FindFirstChild(Viewmodel.GunMarkerName)
+        if gunMarker then gunMarker:Destroy() end
+
+        local cssArms = arms:FindFirstChild("CSSArms")
+        if cssArms then
+            local armMarker = cssArms:FindFirstChild(Viewmodel.ArmMarkerName)
+            if armMarker then armMarker:Destroy() end
+        end
     end
+end
+
+local function StartChamsLoop()
+    if Viewmodel.ChamConnection then return end
+
+    Viewmodel.ChamConnection = RunService.RenderStepped:Connect(function(dt)
+        if not GunMods.Config.ChamsEnabled and not GunMods.Config.ChamArms then
+            return
+        end
+
+        if GunMods.Config.ChamsEnabled then
+            ApplyGunChams()
+        end
+
+        if GunMods.Config.ChamArms then
+            ApplyArmChams()
+        end
+
+        if GunMods.Config.ChamsRainbow and GunMods.Config.ChamsEnabled then
+            Viewmodel.RainbowHue = (Viewmodel.RainbowHue + dt * GunMods.Config.ChamsRainbowSpeed) % 1
+            GunMods.Config.ChamsColor = Color3.fromHSV(Viewmodel.RainbowHue, 1, 1)
+            -- Rainbow forces a refresh by destroying markers
+            ClearChamMarkers()
+        end
+    end)
+end
+
+local function StopChamsLoop()
     if Viewmodel.ChamConnection then
         Viewmodel.ChamConnection:Disconnect()
         Viewmodel.ChamConnection = nil
     end
-    RestoreViewmodelParts()
-    Viewmodel.CurrentModel = nil
-    Viewmodel.CurrentWeaponName = nil
+    ClearChamMarkers()
     Viewmodel.RainbowHue = 0
 end
 
+--// GUI
 function GunMods:Init(Gui)
     self.Gui = Gui
 
@@ -418,7 +409,6 @@ function GunMods:Init(Gui)
             end
         end, y)
 
-        -- Z3US Always Auto
         y = g:CreateToggle("Always Auto", false, function(state)
             SetAlwaysAuto(state)
         end, y)
@@ -438,21 +428,33 @@ function GunMods:Init(Gui)
         y = g:CreateToggle("Enabled", false, function(state)
             GunMods.Config.ChamsEnabled = state
             if state then
-                StartViewmodelWatcher()
+                StartChamsLoop()
             else
-                StopViewmodelWatcher()
+                if not GunMods.Config.ChamArms then
+                    StopChamsLoop()
+                else
+                    ClearChamMarkers()
+                end
             end
         end, y)
 
         y = g:CreateToggle("Rainbow Mode", false, function(state)
             GunMods.Config.ChamsRainbow = state
+            if not state then
+                GunMods.Config.ChamsColor = Color3.fromRGB(19, 0, 255)
+            end
         end, y)
 
         y = g:CreateToggle("Cham Arms", false, function(state)
             GunMods.Config.ChamArms = state
-            if GunMods.Config.ChamsEnabled and Viewmodel.CurrentModel then
-                RestoreViewmodelParts()
-                ApplyChamsToViewmodel(Viewmodel.CurrentModel, GunMods.Config.ChamsColor)
+            if state then
+                StartChamsLoop()
+            else
+                if not GunMods.Config.ChamsEnabled then
+                    StopChamsLoop()
+                else
+                    ClearChamMarkers()
+                end
             end
         end, y)
 
@@ -460,26 +462,19 @@ function GunMods:Init(Gui)
             GunMods.Config.ChamsRainbowSpeed = val
         end, y)
 
-        y = g:CreateSlider("Transparency", 0, 80, math.floor(GunMods.Config.ChamsTransparency * 100), function(val)
+        y = g:CreateSlider("Transparency", 0, 100, math.floor(GunMods.Config.ChamsTransparency * 100), function(val)
             GunMods.Config.ChamsTransparency = val / 100
-            if GunMods.Config.ChamsEnabled and Viewmodel.CurrentModel then
-                ApplyChamsToViewmodel(Viewmodel.CurrentModel, GunMods.Config.ChamsColor)
-            end
+            ClearChamMarkers()
         end, y)
 
-        local Materials = {
-            "Neon", "ForceField", "Glass", "SmoothPlastic", "Metal",
-            "Wood", "Granite", "Marble", "Brick", "Pebble", "Sand",
-            "Fabric", "Foil", "Grass", "Ice", "DiamondPlate",
-            "Aluminum", "Gold", "Silver", "WoodPlanks", "Cobblestone",
-            "Concrete", "CorrodedMetal"
-        }
+        y = g:CreateSlider("Reflectance", 0, 100, math.floor(GunMods.Config.ChamsReflectance * 100), function(val)
+            GunMods.Config.ChamsReflectance = val / 100
+            ClearChamMarkers()
+        end, y)
 
-        y = g:CreateDropdown("Material", Materials, GunMods.Config.ChamsMaterial, function(val)
+        y = g:CreateDropdown("Material", MaterialsList, GunMods.Config.ChamsMaterial, function(val)
             GunMods.Config.ChamsMaterial = val
-            if GunMods.Config.ChamsEnabled and Viewmodel.CurrentModel then
-                ApplyChamsToViewmodel(Viewmodel.CurrentModel, GunMods.Config.ChamsColor)
-            end
+            ClearChamMarkers()
         end, y)
 
         y = g:CreateSection("Cham Colors", y + 10)
@@ -501,9 +496,7 @@ function GunMods:Init(Gui)
             y = g:CreateButton(preset.Name, function()
                 GunMods.Config.ChamsColor = preset.Color
                 GunMods.Config.ChamsRainbow = false
-                if GunMods.Config.ChamsEnabled and Viewmodel.CurrentModel then
-                    ApplyChamsToViewmodel(Viewmodel.CurrentModel, preset.Color)
-                end
+                ClearChamMarkers()
             end, y)
         end
 
@@ -521,18 +514,13 @@ function GunMods:Init(Gui)
         if GunMods.Config.RapidFire then ModStates.RapidFire.Active = true ApplySingleMod("RapidFire") end
         if GunMods.Config.FastReload then ModStates.FastReload.Active = true ApplySingleMod("FastReload") end
         if GunMods.Config.InfiniteAmmo then ApplyInfiniteAmmo() end
-        if GunMods.Config.ChamsEnabled then
+        if GunMods.Config.ChamsEnabled or GunMods.Config.ChamArms then
             task.wait(1)
-            for _, child in ipairs(Camera:GetChildren()) do
-                if IsViewmodelModel(child) then
-                    OnViewmodelChanged(child)
-                    break
-                end
-            end
+            StartChamsLoop()
         end
     end)
 
-    print("[ENI] Gun Mods + Viewmodel Chams + Always Auto loaded")
+    
     return self
 end
 
