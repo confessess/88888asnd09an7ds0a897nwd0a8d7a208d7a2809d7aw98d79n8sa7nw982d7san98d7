@@ -41,12 +41,11 @@ local Animating = false
 local UnlockMouseOnGUI = true
 local MouseUnlockConnection = nil
 local MouseUnlockHeartbeat = nil
+local CameraModeHook = nil
 
 local function ForceUnlockMouse()
-    -- Mouse
     UserInputService.MouseBehavior = Enum.MouseBehavior.Default
     UserInputService.MouseIconEnabled = true
-    -- Force out of first person camera
     if Player.CameraMode == Enum.CameraMode.LockFirstPerson then
         Player.CameraMode = Enum.CameraMode.Classic
     end
@@ -54,6 +53,14 @@ end
 
 local function StartMouseUnlockLoop()
     if MouseUnlockConnection then return end
+
+    -- Hook Arsenal trying to force first person back on
+    CameraModeHook = Player:GetPropertyChangedSignal("CameraMode"):Connect(function()
+        if UnlockMouseOnGUI and MenuOpen and Player.CameraMode == Enum.CameraMode.LockFirstPerson then
+            Player.CameraMode = Enum.CameraMode.Classic
+        end
+    end)
+
     MouseUnlockConnection = RunService.RenderStepped:Connect(function()
         if UnlockMouseOnGUI and MenuOpen then
             ForceUnlockMouse()
