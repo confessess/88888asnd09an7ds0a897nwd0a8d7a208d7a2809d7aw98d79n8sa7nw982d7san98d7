@@ -14,6 +14,7 @@ Movement.Config = {
     WalkSpeed = 50,
     FlyEnabled = false,
     FlySpeed = 50,
+    FlySpeedMultiplier = 1.5, -- Adjust this to match velocity feel
     Noclip = false,
     ThirdPerson = false,
     BhopEnabled = false,
@@ -139,10 +140,9 @@ function Movement:ToggleBhop(state)
     end
 end
 
---// Fly logic
+--// Fly logic (CFrame-based)
 local FlyConnection = nil
-local FlyBodyVel = nil
-local FlyBodyGyro = nil
+local BodyGyro = nil
 
 function Movement:StartFlying()
     local char = LocalPlayer.Character
@@ -153,16 +153,12 @@ function Movement:StartFlying()
 
     humanoid.PlatformStand = true
 
-    FlyBodyGyro = Instance.new("BodyGyro")
-    FlyBodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
-    FlyBodyGyro.P = 10000
-    FlyBodyGyro.CFrame = hrp.CFrame
-    FlyBodyGyro.Parent = hrp
-
-    FlyBodyVel = Instance.new("BodyVelocity")
-    FlyBodyVel.MaxForce = Vector3.new(400000, 400000, 400000)
-    FlyBodyVel.Velocity = Vector3.zero
-    FlyBodyVel.Parent = hrp
+    -- Only use BodyGyro for rotation, no BodyVelocity
+    BodyGyro = Instance.new("BodyGyro")
+    BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+    BodyGyro.P = 10000
+    BodyGyro.CFrame = hrp.CFrame
+    BodyGyro.Parent = hrp
 
     FlyConnection = RunService.Heartbeat:Connect(function()
         if not Movement.Config.FlyEnabled then
@@ -176,37 +172,40 @@ function Movement:StartFlying()
         local currentHumanoid = currentChar:FindFirstChildOfClass("Humanoid")
         if not currentHrp or not currentHumanoid then return end
 
-        if FlyBodyGyro and FlyBodyGyro.Parent then
-            FlyBodyGyro.CFrame = Camera.CFrame
+        -- Get movement input
+        local moveDir = Vector3.zero
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDir = moveDir + Camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDir = moveDir - Camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDir = moveDir - Camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDir = moveDir + Camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDir = moveDir + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDir = moveDir - Vector3.new(0, 1, 0)
         end
 
-        if FlyBodyVel and FlyBodyVel.Parent then
-            local moveDir = Vector3.zero
+        -- Apply CFrame movement with speed multiplier
+        if moveDir.Magnitude > 0 then
+            moveDir = moveDir.Unit
+            local effectiveSpeed = Movement.Config.FlySpeed * Movement.Config.FlySpeedMultiplier
+            local deltaTime = RunService.Heartbeat:Wait()
+            local newCFrame = currentHrp.CFrame + (moveDir * effectiveSpeed * deltaTime)
+            currentHrp.CFrame = newCFrame
+        end
 
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                moveDir = moveDir + Camera.CFrame.LookVector
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                moveDir = moveDir - Camera.CFrame.LookVector
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                moveDir = moveDir - Camera.CFrame.RightVector
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                moveDir = moveDir + Camera.CFrame.RightVector
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                moveDir = moveDir + Vector3.new(0, 1, 0)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                moveDir = moveDir - Vector3.new(0, 1, 0)
-            end
-
-            if moveDir.Magnitude > 0 then
-                moveDir = moveDir.Unit * Movement.Config.FlySpeed
-            end
-
-            FlyBodyVel.Velocity = moveDir
+        -- Update gyro to face camera
+        if BodyGyro and BodyGyro.Parent then
+            BodyGyro.CFrame = Camera.CFrame
         end
     end)
 end
@@ -233,8 +232,7 @@ function Movement:StopFlying()
         end
     end
 
-    FlyBodyVel = nil
-    FlyBodyGyro = nil
+    BodyGyro = nil
 end
 
 function Movement:ToggleFly(state)
