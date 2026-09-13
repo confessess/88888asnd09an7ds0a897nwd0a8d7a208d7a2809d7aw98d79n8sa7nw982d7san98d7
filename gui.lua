@@ -38,14 +38,19 @@ local MenuOpen = true
 local Animating = false
 
 --// Mouse unlock setting
-local UnlockMouseOnGUI = false
+local UnlockMouseOnGUI = true
 local MouseUnlockConnection = nil
+
+local function ForceUnlockMouse()
+    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    UserInputService.MouseIconEnabled = true
+end
+
 local function StartMouseUnlockLoop()
     if MouseUnlockConnection then return end
     MouseUnlockConnection = RunService.RenderStepped:Connect(function()
         if UnlockMouseOnGUI and MenuOpen then
-            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-            UserInputService.MouseIconEnabled = true
+            ForceUnlockMouse()
         end
     end)
 end
@@ -384,13 +389,6 @@ function Gui:HideMenu()
         Animating = false
     end)
 
-    -- Unlock mouse if setting is enabled
-    if UnlockMouseOnGUI then
-        pcall(function()
-            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-            UserInputService.MouseIconEnabled = true
-        end)
-    end
 end
 
 function Gui:ShowMenu()
@@ -415,12 +413,9 @@ function Gui:ShowMenu()
         Animating = false
     end)
 
-    -- Unlock mouse if setting is enabled
+    -- Force unlock mouse immediately
     if UnlockMouseOnGUI then
-        pcall(function()
-            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-            UserInputService.MouseIconEnabled = true
-        end)
+        ForceUnlockMouse()
     end
 end
 
@@ -1013,7 +1008,7 @@ end
 function Gui:CreateMouseUnlockToggle(y)
     local toggleKey = self.CurrentTab .. "_UnlockMouseOnGUI"
     local savedState = self.ToggleStates[toggleKey]
-    local State = savedState ~= nil and savedState or false
+    local State = savedState ~= nil and savedState or true
     UnlockMouseOnGUI = State
 
     local ToggleFrame = Instance.new("Frame")
