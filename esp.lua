@@ -1,5 +1,3 @@
-
-
 local ESP = {}
 ESP.__index = ESP
 
@@ -24,6 +22,7 @@ ESP.Config = {
 
 local ESPObjects = {}
 local Highlights = {}
+local LastCharacters = {}
 
 local function HideAllESP()
     for _, esp in pairs(ESPObjects) do
@@ -47,6 +46,7 @@ end
 
 local function CreateESP(player)
     if player == LocalPlayer then return end
+    if ESPObjects[player] then return end
 
     local esp = {
         Player = player,
@@ -120,12 +120,22 @@ local function RemoveESP(player)
     local esp = ESPObjects[player]
     if esp then
         for _, obj in pairs(esp) do
-            if type(obj) == "table" and obj.Remove then obj:Remove() end
+            if type(obj) == "table" and obj.Visible ~= nil then
+                obj.Visible = false
+            end
         end
+        task.delay(0.05, function()
+            for _, obj in pairs(esp) do
+                if type(obj) == "table" and obj.Remove then 
+                    pcall(function() obj:Remove() end)
+                end
+            end
+        end)
         ESPObjects[player] = nil
     end
     local hl = Highlights[player]
     if hl then hl:Destroy() Highlights[player] = nil end
+    LastCharacters[player] = nil
 end
 
 local function UpdateESP()
@@ -135,77 +145,132 @@ local function UpdateESP()
         return
     end
 
+    local camera = Workspace.CurrentCamera
+    if not camera then return end
+
     for player, esp in pairs(ESPObjects) do
-        local character = player.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        if not player.Parent then
+            RemoveESP(player)
+        else
+            local character = player.Character
+            local lastChar = LastCharacters[player]
+            
+            -- Character change detection
+            if character ~= lastChar then
+                esp.Box.Visible = false
+                esp.BoxOutline.Visible = false
+                esp.Name.Visible = false
+                esp.HealthBar.Visible = false
+                esp.HealthBarOutline.Visible = false
+                esp.HealthText.Visible = false
+                esp.Distance.Visible = false
+                esp.Weapon.Visible = false
+                
+                local hl = Highlights[player]
+                if hl then
+                    hl.Parent = nil
+                    hl.Enabled = false
+                end
+                
+                LastCharacters[player] = character
+            end
+            
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 
-        if character and humanoid and rootPart and humanoid.Health > 0 then
-            local showESP = true
-            if ESP.Config.TeamCheck and player.Team == LocalPlayer.Team then showESP = false end
-            local distance = (rootPart.Position - Workspace.CurrentCamera.CFrame.Position).Magnitude
-            if distance > ESP.Config.RenderDistance then showESP = false end
+            -- Strict validation
+            local isValid = false
+            if character and character.Parent == Workspace and humanoid and rootPart and humanoid.Health > 0 then
+                if rootPart.Parent == character then
+                    local head = character:FindFirstChild("Head")
+                    if head and head.Parent == character then
+                        isValid = true
+                    end
+                end
+            end
 
-            if showESP then
-                local pos, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position)
-                if onScreen then
-                    local height = (Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0)).Y - Workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 3, 0)).Y)
-                    local width = height / 2
+            if isValid then
+                local showESP = true
+                if ESP.Config.TeamCheck and player.Team == LocalPlayer.Team then showESP = false end
+                local distance = (rootPart.Position - camera.CFrame.Position).Magnitude
+                if distance > ESP.Config.RenderDistance then showESP = false end
 
-                    if ESP.Config.Boxes then
-                        esp.Box.Size = Vector2.new(width, height)
-                        esp.Box.Position = Vector2.new(pos.X - width / 2, pos.Y - height / 2)
-                        esp.Box.Color = ESP.Config.Color
-                        esp.Box.Visible = true
-                        esp.BoxOutline.Size = Vector2.new(width, height)
-                        esp.BoxOutline.Position = Vector2.new(pos.X - width / 2, pos.Y - height / 2)
-                        esp.BoxOutline.Visible = true
+                if showESP then
+                    local pos, onScreen = camera:WorldToViewportPoint(rootPart.Position)
+                    if onScreen then
+                        local height = (camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0)).Y - camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 3, 0)).Y)
+                        local width = height / 2
+
+                        if ESP.Config.Boxes then
+                            esp.Box.Size = Vector2.new(width, height)
+                            esp.Box.Position = Vector2.new(pos.X - width / 2, pos.Y - height / 2)
+                            esp.Box.Color = ESP.Config.Color
+                            esp.Box.Visible = true
+                            esp.BoxOutline.Size = Vector2.new(width, height)
+                            esp.BoxOutline.Position = Vector2.new(pos.X - width / 2, pos.Y - height / 2)
+                            esp.BoxOutline.Visible = true
+                        else
+                            esp.Box.Visible = false
+                            esp.BoxOutline.Visible = false
+                        end
+
+                        if ESP.Config.Names then
+                            esp.Name.Text = player.Name
+                            esp.Name.Position = Vector2.new(pos.X, pos.Y - height / 2 - 15)
+                            esp.Name.Color = ESP.Config.Color
+                            esp.Name.Visible = true
+                        else 
+                            esp.Name.Visible = false 
+                        end
+
+                        if ESP.Config.Health then
+                            local healthPercent = humanoid.Health / humanoid.MaxHealth
+                            local barHeight = height * healthPercent
+                            esp.HealthBar.Size = Vector2.new(4, barHeight)
+                            esp.HealthBar.Position = Vector2.new(pos.X - width / 2 - 6, pos.Y + height / 2 - barHeight)
+                            esp.HealthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+                            esp.HealthBar.Visible = true
+                            esp.HealthBarOutline.Size = Vector2.new(6, height)
+                            esp.HealthBarOutline.Position = Vector2.new(pos.X - width / 2 - 7, pos.Y - height / 2)
+                            esp.HealthBarOutline.Visible = true
+                            esp.HealthText.Text = tostring(math.floor(humanoid.Health))
+                            esp.HealthText.Position = Vector2.new(pos.X - width / 2 - 20, pos.Y)
+                            esp.HealthText.Color = esp.HealthBar.Color
+                            esp.HealthText.Visible = true
+                        else
+                            esp.HealthBar.Visible = false
+                            esp.HealthBarOutline.Visible = false
+                            esp.HealthText.Visible = false
+                        end
+
+                        if ESP.Config.Distance then
+                            esp.Distance.Text = math.floor(distance) .. "m"
+                            esp.Distance.Position = Vector2.new(pos.X, pos.Y + height / 2 + 5)
+                            esp.Distance.Color = ESP.Config.Color
+                            esp.Distance.Visible = true
+                        else 
+                            esp.Distance.Visible = false 
+                        end
+
+                        if ESP.Config.Weapon then
+                            local tool = character:FindFirstChildOfClass("Tool")
+                            esp.Weapon.Text = tool and tool.Name or "None"
+                            esp.Weapon.Position = Vector2.new(pos.X, pos.Y + height / 2 + 20)
+                            esp.Weapon.Color = ESP.Config.Color
+                            esp.Weapon.Visible = true
+                        else 
+                            esp.Weapon.Visible = false 
+                        end
                     else
                         esp.Box.Visible = false
                         esp.BoxOutline.Visible = false
-                    end
-
-                    if ESP.Config.Names then
-                        esp.Name.Text = player.Name
-                        esp.Name.Position = Vector2.new(pos.X, pos.Y - height / 2 - 15)
-                        esp.Name.Color = ESP.Config.Color
-                        esp.Name.Visible = true
-                    else esp.Name.Visible = false end
-
-                    if ESP.Config.Health then
-                        local healthPercent = humanoid.Health / humanoid.MaxHealth
-                        local barHeight = height * healthPercent
-                        esp.HealthBar.Size = Vector2.new(4, barHeight)
-                        esp.HealthBar.Position = Vector2.new(pos.X - width / 2 - 6, pos.Y + height / 2 - barHeight)
-                        esp.HealthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
-                        esp.HealthBar.Visible = true
-                        esp.HealthBarOutline.Size = Vector2.new(6, height)
-                        esp.HealthBarOutline.Position = Vector2.new(pos.X - width / 2 - 7, pos.Y - height / 2)
-                        esp.HealthBarOutline.Visible = true
-                        esp.HealthText.Text = tostring(math.floor(humanoid.Health))
-                        esp.HealthText.Position = Vector2.new(pos.X - width / 2 - 20, pos.Y)
-                        esp.HealthText.Color = esp.HealthBar.Color
-                        esp.HealthText.Visible = true
-                    else
+                        esp.Name.Visible = false
                         esp.HealthBar.Visible = false
                         esp.HealthBarOutline.Visible = false
                         esp.HealthText.Visible = false
+                        esp.Distance.Visible = false
+                        esp.Weapon.Visible = false
                     end
-
-                    if ESP.Config.Distance then
-                        esp.Distance.Text = math.floor(distance) .. "m"
-                        esp.Distance.Position = Vector2.new(pos.X, pos.Y + height / 2 + 5)
-                        esp.Distance.Color = ESP.Config.Color
-                        esp.Distance.Visible = true
-                    else esp.Distance.Visible = false end
-
-                    if ESP.Config.Weapon then
-                        local tool = character:FindFirstChildOfClass("Tool")
-                        esp.Weapon.Text = tool and tool.Name or "None"
-                        esp.Weapon.Position = Vector2.new(pos.X, pos.Y + height / 2 + 20)
-                        esp.Weapon.Color = ESP.Config.Color
-                        esp.Weapon.Visible = true
-                    else esp.Weapon.Visible = false end
                 else
                     esp.Box.Visible = false
                     esp.BoxOutline.Visible = false
@@ -226,45 +291,55 @@ local function UpdateESP()
                 esp.Distance.Visible = false
                 esp.Weapon.Visible = false
             end
-        else
-            esp.Box.Visible = false
-            esp.BoxOutline.Visible = false
-            esp.Name.Visible = false
-            esp.HealthBar.Visible = false
-            esp.HealthBarOutline.Visible = false
-            esp.HealthText.Visible = false
-            esp.Distance.Visible = false
-            esp.Weapon.Visible = false
         end
     end
 
+    -- Chams
     for player, hl in pairs(Highlights) do
-        local character = player.Character
-        local showChams = false
-        if character and ESP.Config.Chams and ESP.Config.Enabled then
-            if not ESP.Config.TeamCheck or player.Team ~= LocalPlayer.Team then
-                local rootPart = character:FindFirstChild("HumanoidRootPart")
-                if rootPart then
-                    local distance = (rootPart.Position - Workspace.CurrentCamera.CFrame.Position).Magnitude
-                    if distance <= ESP.Config.RenderDistance then
-                        showChams = true
-                        hl.Parent = character
+        if not player.Parent then
+            RemoveESP(player)
+        else
+            local character = player.Character
+            local showChams = false
+            
+            if character and character.Parent == Workspace and ESP.Config.Chams and ESP.Config.Enabled then
+                if not ESP.Config.TeamCheck or player.Team ~= LocalPlayer.Team then
+                    local rootPart = character:FindFirstChild("HumanoidRootPart")
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if rootPart and humanoid and humanoid.Health > 0 then
+                        local distance = (rootPart.Position - camera.CFrame.Position).Magnitude
+                        if distance <= ESP.Config.RenderDistance then
+                            showChams = true
+                            if hl.Parent ~= character then
+                                hl.Parent = character
+                            end
+                        end
                     end
                 end
             end
-        end
-        hl.Enabled = showChams
-        if showChams then
-            hl.FillColor = ESP.Config.Color
-            hl.OutlineColor = ESP.Config.Color
+            
+            hl.Enabled = showChams
+            if showChams then
+                hl.FillColor = ESP.Config.Color
+                hl.OutlineColor = ESP.Config.Color
+            end
         end
     end
 end
 
 RunService.RenderStepped:Connect(UpdateESP)
 
-for _, player in ipairs(Players:GetPlayers()) do if player ~= LocalPlayer then CreateESP(player) end end
-Players.PlayerAdded:Connect(function(p) task.wait(1) CreateESP(p) end)
+for _, player in ipairs(Players:GetPlayers()) do 
+    if player ~= LocalPlayer then 
+        CreateESP(player) 
+    end 
+end
+
+Players.PlayerAdded:Connect(function(p) 
+    task.wait(1) 
+    CreateESP(p) 
+end)
+
 Players.PlayerRemoving:Connect(RemoveESP)
 
 function ESP:Init(Gui)
@@ -291,7 +366,6 @@ function ESP:Init(Gui)
         y = g:CreateToggle("Team Check", true, function(s) ESP.Config.TeamCheck = s end, y)
         y = g:CreateSlider("Render Distance", 10, 2500, 1000, function(v) ESP.Config.RenderDistance = v end, y)
 
-        -- Color Picker
         y = g:CreateSection("ESP Color", y + 10)
 
         local colorPresets = {
@@ -309,7 +383,6 @@ function ESP:Init(Gui)
         for _, preset in ipairs(colorPresets) do
             y = g:CreateButton(preset.Name, function()
                 ESP.Config.Color = preset.Color
-                
             end, y)
         end
 
