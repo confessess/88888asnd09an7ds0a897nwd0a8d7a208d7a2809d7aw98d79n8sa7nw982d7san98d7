@@ -47,6 +47,7 @@ end
 
 local function CreateESP(player)
     if player == LocalPlayer then return end
+    if ESPObjects[player] then return end -- ADD THIS LINE
 
     local esp = {
         Player = player,
@@ -119,9 +120,20 @@ end
 local function RemoveESP(player)
     local esp = ESPObjects[player]
     if esp then
+        -- Force hide first (prevents ghost nametags)
         for _, obj in pairs(esp) do
-            if type(obj) == "table" and obj.Remove then obj:Remove() end
+            if type(obj) == "table" and obj.Visible ~= nil then
+                obj.Visible = false
+            end
         end
+        -- Small delay for renderer to catch up
+        task.delay(0.05, function()
+            for _, obj in pairs(esp) do
+                if type(obj) == "table" and obj.Remove then 
+                    pcall(function() obj:Remove() end)
+                end
+            end
+        end)
         ESPObjects[player] = nil
     end
     local hl = Highlights[player]
@@ -140,7 +152,8 @@ local function UpdateESP()
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
         local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 
-        if character and humanoid and rootPart and humanoid.Health > 0 then
+        local isValid = character and character.Parent == Workspace and humanoid and rootPart and humanoid.Health > 0 and rootPart.Parent == character
+            if isValid then
             local showESP = true
             if ESP.Config.TeamCheck and player.Team == LocalPlayer.Team then showESP = false end
             local distance = (rootPart.Position - Workspace.CurrentCamera.CFrame.Position).Magnitude
